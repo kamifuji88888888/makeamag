@@ -643,11 +643,11 @@ app.get('/api/health', (_req, res) => {
 if (isProduction) {
   const distPath = path.join(__dirname, '..', 'dist')
   app.use(express.static(distPath))
-  app.get('*', (_req, res) => {
+  app.get('/{*splat}', (_req, res) => {
     res.sendFile(path.join(distPath, 'index.html'))
   })
 }
 
-app.listen(PORT, () => {
-  console.log(`MakeAMag server running on http://localhost:${PORT}`)
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`MakeAMag server running on http://0.0.0.0:${PORT}`)
 })
