@@ -693,7 +693,10 @@ export function EditorPage() {
           <>
             <section className="px-6 pb-12 pt-16 text-center md:pt-20">
               <div className="mx-auto max-w-[680px]">
-                <h1 className="apple-hero-title">Make a Mag! In One Click!</h1>
+                <h1 className="apple-hero-title">
+                  <span className="block">Make Your Online Magazine!</span>
+                  <span className="block">In One Click!</span>
+                </h1>
                 <p className="apple-hero-subtitle mx-auto mt-5 max-w-[580px]">
                   Upload a brochure or magazine. Add videos, links, and a table of contents.
                   Share a beautiful flipbook — anywhere.
