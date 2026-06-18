@@ -39,9 +39,9 @@ import { UploadZone } from '../components/UploadZone'
 const TESTIMONIALS = [
   {
     quote:
-      'We shipped our alumni magazine in an afternoon. The table of contents and spread view finally feel like a real publication.',
-    name: 'Elowen Marsh',
-    role: 'Editor, Larkspur Quarterly',
+      'We published GENLUX faster than we ever thought possible. The table of contents and spread view finally feel like a real magazine.',
+    name: 'Stephen Kamifuji',
+    role: 'Founder/Creative Director, GENLUX magazine',
   },
   {
     quote:
