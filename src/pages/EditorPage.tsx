@@ -211,10 +211,21 @@ export function EditorPage() {
 
       setState({ status: 'loading', fileName: file.name, progress: 0 })
 
+      const runStep = async <T,>(step: string, fn: () => Promise<T>): Promise<T> => {
+        try {
+          return await fn()
+        } catch (error) {
+          const detail = error instanceof Error ? error.message : String(error)
+          throw new Error(`${step}: ${detail}`)
+        }
+      }
+
       try {
-        const result = await renderPdfToImages(file, (progress) => {
-          setState({ status: 'loading', fileName: file.name, progress })
-        })
+        const result = await runStep('render', () =>
+          renderPdfToImages(file, (progress) => {
+            setState({ status: 'loading', fileName: file.name, progress })
+          }),
+        )
 
         if (!plan.canAddPages(result.pageCount)) {
           setState({ status: 'idle' })
@@ -222,17 +233,21 @@ export function EditorPage() {
           return
         }
 
-        const thumbnail = await createThumbnailFromDataUrl(result.images[0] ?? '')
-        const outline = await extractPdfOutline(file).catch(() => [])
+        const thumbnail = await runStep('thumbnail', () =>
+          createThumbnailFromDataUrl(result.images[0] ?? ''),
+        )
+        const outline = await runStep('outline', () => extractPdfOutline(file).catch(() => []))
         const publication = defaultPublication(file.name)
         const spreadView = defaultSpreadView(result.aspectRatio)
 
-        const entry = await library.addDraft(file, result.pageCount, {
-          publication,
-          tableOfContents: outline,
-          spreadView,
-          thumbnail,
-        })
+        const entry = await runStep('save draft', () =>
+          library.addDraft(file, result.pageCount, {
+            publication,
+            tableOfContents: outline,
+            spreadView,
+            thumbnail,
+          }),
+        )
 
         plan.refreshUsage()
 

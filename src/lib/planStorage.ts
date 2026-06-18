@@ -12,9 +12,9 @@ export interface PlanUsage {
 }
 
 export function getStoredPlan(): PlanId {
-  // Local dev gets full Publisher limits for testing real magazines.
+  // Local dev defaults to Pro so paid-tier features can be tested without Stripe.
   if (import.meta.env.DEV) {
-    return 'publisher'
+    return 'pro'
   }
 
   try {

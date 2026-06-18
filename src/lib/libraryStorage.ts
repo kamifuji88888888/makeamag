@@ -12,6 +12,41 @@ const DB_NAME = 'makeamag_drafts'
 const DB_VERSION = 1
 const PDF_STORE = 'pdfs'
 
+interface StoredDraftPdf {
+  name: string
+  type: string
+  data: ArrayBuffer
+}
+
+function isStoredDraftPdf(value: unknown): value is StoredDraftPdf {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'data' in value &&
+    value.data instanceof ArrayBuffer &&
+    'name' in value &&
+    typeof value.name === 'string'
+  )
+}
+
+function fileFromStoredDraft(value: unknown, fallbackName: string): File | null {
+  if (value instanceof File) {
+    return value
+  }
+  if (value instanceof Blob) {
+    return new File([value], fallbackName, { type: value.type || 'application/pdf' })
+  }
+  if (value instanceof ArrayBuffer) {
+    return new File([value], fallbackName, { type: 'application/pdf' })
+  }
+  if (isStoredDraftPdf(value)) {
+    return new File([value.data], value.name || fallbackName, {
+      type: value.type || 'application/pdf',
+    })
+  }
+  return null
+}
+
 export interface LibraryFolder {
   id: string
   name: string
@@ -98,26 +133,33 @@ function openDraftDb(): Promise<IDBDatabase> {
 }
 
 export async function saveDraftPdf(id: string, file: File): Promise<void> {
+  const data = await file.arrayBuffer()
+  const record: StoredDraftPdf = {
+    name: file.name,
+    type: file.type || 'application/pdf',
+    data,
+  }
   const db = await openDraftDb()
   await new Promise<void>((resolve, reject) => {
     const tx = db.transaction(PDF_STORE, 'readwrite')
-    tx.objectStore(PDF_STORE).put(file, id)
+    tx.objectStore(PDF_STORE).put(record, id)
     tx.oncomplete = () => resolve()
     tx.onerror = () => reject(tx.error ?? new Error('Failed to save draft PDF'))
   })
   db.close()
 }
 
-export async function loadDraftPdf(id: string): Promise<File | null> {
+export async function loadDraftPdf(id: string, fallbackName = 'draft.pdf'): Promise<File | null> {
   const db = await openDraftDb()
-  const file = await new Promise<File | null>((resolve, reject) => {
+  const stored = await new Promise<unknown>((resolve, reject) => {
     const tx = db.transaction(PDF_STORE, 'readonly')
     const request = tx.objectStore(PDF_STORE).get(id)
-    request.onsuccess = () => resolve((request.result as File | undefined) ?? null)
+    request.onsuccess = () => resolve(request.result)
     request.onerror = () => reject(request.error ?? new Error('Failed to load draft PDF'))
   })
   db.close()
-  return file
+  if (!stored) return null
+  return fileFromStoredDraft(stored, fallbackName)
 }
 
 export async function deleteDraftPdf(id: string): Promise<void> {

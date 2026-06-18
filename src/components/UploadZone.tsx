@@ -13,7 +13,9 @@ export function UploadZone({ onFileSelect, disabled, maxUploadMb }: UploadZonePr
   const handleFile = useCallback(
     (file: File | undefined) => {
       if (!file || disabled) return
-      if (file.type !== 'application/pdf') {
+      const isPdf =
+        file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
+      if (!isPdf) {
         alert('Please upload a PDF file.')
         return
       }

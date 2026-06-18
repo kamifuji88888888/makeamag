@@ -111,7 +111,7 @@ export function useFlipbookLibrary() {
   const openDraft = useCallback(async (entry: LibraryEntry) => {
     touchLibraryEntry(entry.id)
     refresh()
-    const file = await loadDraftPdf(entry.id)
+    const file = await loadDraftPdf(entry.id, entry.fileName)
     if (!file) {
       removeLibraryEntry(entry.id)
       refresh()

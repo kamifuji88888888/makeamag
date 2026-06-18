@@ -10,7 +10,7 @@ COPY . .
 ARG VITE_CANONICAL_HOST=makeamag.com
 ENV VITE_CANONICAL_HOST=$VITE_CANONICAL_HOST
 
-RUN npm run build
+RUN node scripts/copy-pdfjs.mjs && npm run build
 
 FROM node:20-alpine AS production
 

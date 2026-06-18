@@ -1,8 +1,38 @@
-import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs'
-import pdfWorkerUrl from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url'
+import type * as PdfJs from 'pdfjs-dist/legacy/build/pdf.mjs'
 import type { TocEntry } from '../../shared/flipbook'
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl
+type PdfJsModule = typeof PdfJs
+
+declare global {
+  interface Window {
+    __makeamagPdfjs?: PdfJsModule
+  }
+}
+
+async function getPdfJs(): Promise<PdfJsModule> {
+  if (window.__makeamagPdfjs) {
+    return window.__makeamagPdfjs
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    const timeout = window.setTimeout(() => {
+      reject(new Error('PDF engine failed to load'))
+    }, 15000)
+
+    const waitForPdfJs = () => {
+      if (window.__makeamagPdfjs) {
+        window.clearTimeout(timeout)
+        resolve()
+        return
+      }
+      window.requestAnimationFrame(waitForPdfJs)
+    }
+
+    waitForPdfJs()
+  })
+
+  return window.__makeamagPdfjs!
+}
 
 export interface PdfRenderResult {
   images: string[]
@@ -14,6 +44,7 @@ export interface PdfRenderResult {
 const MAX_RENDER_WIDTH = 1400
 
 async function loadPdf(data: ArrayBuffer) {
+  const pdfjsLib = await getPdfJs()
   return pdfjsLib.getDocument({
     data,
     useSystemFonts: true,
@@ -37,9 +68,10 @@ function createPageCanvas(pageViewport: { width: number; height: number }) {
 }
 
 async function renderPageToDataUrl(
-  page: pdfjsLib.PDFPageProxy,
-  pageViewport: ReturnType<pdfjsLib.PDFPageProxy['getViewport']>,
+  page: PdfJs.PDFPageProxy,
+  pageViewport: ReturnType<PdfJs.PDFPageProxy['getViewport']>,
 ): Promise<string> {
+  const pdfjsLib = await getPdfJs()
   const { canvas, context } = createPageCanvas(pageViewport)
 
   const renderTask = page.render({
@@ -56,18 +88,23 @@ async function renderPageToDataUrl(
   return canvas.toDataURL('image/png')
 }
 
-async function extractPageText(page: pdfjsLib.PDFPageProxy): Promise<string> {
-  const content = await page.getTextContent()
-  const items = Array.isArray(content.items) ? content.items : []
-  return items
-    .map((item) => ('str' in item ? item.str : ''))
-    .join(' ')
-    .replace(/\s+/g, ' ')
-    .trim()
+async function extractPageText(page: PdfJs.PDFPageProxy): Promise<string> {
+  try {
+    const content = await page.getTextContent()
+    const items = Array.isArray(content.items) ? content.items : []
+    return items
+      .map((item) => ('str' in item ? item.str : ''))
+      .join(' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+  } catch {
+    // pdf.js getTextContent() throws in WebKit/Safari; search still works without page text.
+    return ''
+  }
 }
 
 async function renderPages(
-  pdf: pdfjsLib.PDFDocumentProxy,
+  pdf: PdfJs.PDFDocumentProxy,
   onProgress?: (progress: number) => void,
 ): Promise<PdfRenderResult> {
   const numPages = pdf.numPages
@@ -117,6 +154,7 @@ export async function renderPdfFromUrl(
   url: string,
   onProgress?: (progress: number) => void,
 ): Promise<PdfRenderResult> {
+  const pdfjsLib = await getPdfJs()
   const pdf = await pdfjsLib.getDocument({ url, useSystemFonts: true }).promise
   try {
     return await renderPages(pdf, onProgress)
@@ -126,7 +164,7 @@ export async function renderPdfFromUrl(
 }
 
 async function resolveOutlinePageIndex(
-  pdf: pdfjsLib.PDFDocumentProxy,
+  pdf: PdfJs.PDFDocumentProxy,
   item: { dest?: string | unknown[] | null; title?: string },
 ): Promise<number | null> {
   if (!item.dest) return null
@@ -137,15 +175,15 @@ async function resolveOutlinePageIndex(
       dest = await pdf.getDestination(dest)
     }
     if (!Array.isArray(dest) || !dest[0]) return null
-    return await pdf.getPageIndex(dest[0] as Parameters<pdfjsLib.PDFDocumentProxy['getPageIndex']>[0])
+    return await pdf.getPageIndex(dest[0] as Parameters<PdfJs.PDFDocumentProxy['getPageIndex']>[0])
   } catch {
     return null
   }
 }
 
 async function flattenOutline(
-  pdf: pdfjsLib.PDFDocumentProxy,
-  items: NonNullable<Awaited<ReturnType<pdfjsLib.PDFDocumentProxy['getOutline']>>>,
+  pdf: PdfJs.PDFDocumentProxy,
+  items: NonNullable<Awaited<ReturnType<PdfJs.PDFDocumentProxy['getOutline']>>>,
   acc: TocEntry[] = [],
 ): Promise<TocEntry[]> {
   for (const item of items) {

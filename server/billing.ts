@@ -76,6 +76,34 @@ function isActiveStatus(status: BillingStatus): boolean {
   return status === 'active' || status === 'trialing'
 }
 
+function resolvePlanOverride(accountId: string): PlanId | null {
+  const rawPlan = process.env.BILLING_OVERRIDE_PLAN?.trim()
+  if (!rawPlan) return null
+
+  const planId = parsePlanId(rawPlan)
+  if (!isPaidPlan(planId)) return null
+
+  const targetAccount = process.env.BILLING_OVERRIDE_ACCOUNT_ID?.trim()
+  if (!targetAccount || targetAccount !== accountId) return null
+
+  return planId
+}
+
+function applyPlanOverride(
+  accountId: string,
+  status: BillingAccountStatus,
+): BillingAccountStatus {
+  const overridePlan = resolvePlanOverride(accountId)
+  if (!overridePlan) return status
+
+  return {
+    ...status,
+    planId: overridePlan,
+    status: 'active',
+    hasSubscription: true,
+  }
+}
+
 export function createBillingStore(dataDir: string) {
   const billingDir = path.join(dataDir, 'billing')
 
@@ -160,7 +188,7 @@ export function createBillingStore(dataDir: string) {
   return {
     async getStatus(accountId: string): Promise<BillingAccountStatus> {
       const record = await getOrCreateRecord(accountId)
-      return toStatus(record)
+      return applyPlanOverride(accountId, toStatus(record))
     },
 
     async createCheckoutSession(
@@ -245,7 +273,7 @@ export function createBillingStore(dataDir: string) {
       }
 
       const updated = await readRecord(accountId)
-      return toStatus(updated ?? record)
+      return applyPlanOverride(accountId, toStatus(updated ?? record))
     },
 
     async createPortalSession(accountId: string): Promise<string> {

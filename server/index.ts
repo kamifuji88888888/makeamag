@@ -756,7 +756,15 @@ app.get('/api/health', (_req, res) => {
 
 if (isProduction) {
   const distPath = path.join(__dirname, '..', 'dist')
-  app.use(express.static(distPath))
+  app.use(
+    express.static(distPath, {
+      setHeaders(res, filePath) {
+        if (filePath.endsWith('.mjs')) {
+          res.setHeader('Content-Type', 'application/javascript; charset=utf-8')
+        }
+      },
+    }),
+  )
   app.get('/{*splat}', (_req, res) => {
     res.sendFile(path.join(distPath, 'index.html'))
   })
