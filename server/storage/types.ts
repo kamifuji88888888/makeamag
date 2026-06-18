@@ -11,6 +11,7 @@ export interface StorageProvider {
   getPdfRedirectUrl(id: string): Promise<string | null>
   saveMeta(meta: FlipbookStoredMeta): Promise<void>
   readMeta(id: string): Promise<FlipbookStoredMeta | null>
+  listAllMeta(): Promise<FlipbookStoredMeta[]>
   saveLogo(id: string, buffer: Buffer, contentType: string): Promise<string>
   readLogo(id: string): Promise<LogoAsset | null>
   deleteLogo(id: string): Promise<void>

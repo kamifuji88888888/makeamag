@@ -113,6 +113,7 @@ export async function publishFlipbook(
     leadCapture?: LeadCaptureConfig
     subscriberAccessCode?: string
     planId?: PlanId
+    billingAccountId?: string
   },
 ): Promise<FlipbookPublicMeta> {
   const formData = new FormData()
@@ -147,6 +148,9 @@ export async function publishFlipbook(
   }
   if (options?.planId) {
     formData.append('planId', options.planId)
+  }
+  if (options?.billingAccountId) {
+    formData.append('billingAccountId', options.billingAccountId)
   }
 
   const response = await fetch(`${API_BASE}/flipbooks`, {
@@ -264,12 +268,12 @@ export async function fetchCapturedLeads(
   return response.json() as Promise<{ leads: CapturedLead[]; total: number }>
 }
 
-export async function fetchStripeStatus(): Promise<{ configured: boolean }> {
+export async function fetchStripeStatus(): Promise<{ configured: boolean; billingEnabled?: boolean }> {
   const response = await fetch(`${API_BASE}/stripe/status`)
   if (!response.ok) {
-    return { configured: false }
+    return { configured: false, billingEnabled: false }
   }
-  return response.json() as Promise<{ configured: boolean }>
+  return response.json() as Promise<{ configured: boolean; billingEnabled?: boolean }>
 }
 
 export async function startStripeConnect(flipbookId: string): Promise<string> {

@@ -57,6 +57,28 @@ export function createLocalStorage(dataDir: string): StorageProvider {
       }
     },
 
+    async listAllMeta() {
+      await ensureDirs()
+      let files: string[]
+      try {
+        files = await fs.readdir(metaDir)
+      } catch {
+        return []
+      }
+
+      const metas: FlipbookStoredMeta[] = []
+      for (const file of files) {
+        if (!file.endsWith('.json')) continue
+        try {
+          const raw = await fs.readFile(path.join(metaDir, file), 'utf-8')
+          metas.push(JSON.parse(raw) as FlipbookStoredMeta)
+        } catch {
+          // skip corrupt meta files
+        }
+      }
+      return metas
+    },
+
     async saveLogo(id, buffer, contentType) {
       await ensureDirs()
       await fs.writeFile(logoPath(id), buffer)

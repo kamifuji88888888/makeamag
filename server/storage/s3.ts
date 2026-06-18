@@ -1,5 +1,6 @@
 import {
   GetObjectCommand,
+  ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3'
@@ -110,6 +111,42 @@ export function createS3Storage(): StorageProvider {
       } catch {
         return null
       }
+    },
+
+    async listAllMeta() {
+      const metas: FlipbookStoredMeta[] = []
+      let continuationToken: string | undefined
+
+      do {
+        const response = await client.send(
+          new ListObjectsV2Command({
+            Bucket: bucket,
+            Prefix: 'flipbooks/',
+            ContinuationToken: continuationToken,
+          }),
+        )
+
+        for (const item of response.Contents ?? []) {
+          if (!item.Key?.endsWith('/meta.json')) continue
+          try {
+            const object = await client.send(
+              new GetObjectCommand({
+                Bucket: bucket,
+                Key: item.Key,
+              }),
+            )
+            const raw = await object.Body?.transformToString()
+            if (!raw) continue
+            metas.push(JSON.parse(raw) as FlipbookStoredMeta)
+          } catch {
+            // skip unreadable meta objects
+          }
+        }
+
+        continuationToken = response.IsTruncated ? response.NextContinuationToken : undefined
+      } while (continuationToken)
+
+      return metas
     },
 
     async saveLogo(id, buffer, contentType) {

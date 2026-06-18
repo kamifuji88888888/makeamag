@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { PlanFeature, PlanId } from '../../shared/plans'
 import { getPlan, maxPdfUploadBytes, PLANS } from '../../shared/plans'
+import { fetchBillingStatus } from '../lib/billingApi'
 import {
   analyticsDaysForPlan,
   canAddFlipbook,
@@ -19,19 +20,58 @@ import {
 export function usePlan() {
   const [planId, setPlanId] = useState<PlanId>(() => getStoredPlan())
   const [usage, setUsage] = useState<PlanUsage>(() => getPlanUsage())
+  const [billingLoaded, setBillingLoaded] = useState(false)
+  const [hasSubscription, setHasSubscription] = useState(false)
 
   const refreshUsage = useCallback(() => {
     setUsage(getPlanUsage())
+  }, [])
+
+  const applyPlan = useCallback((next: PlanId) => {
+    setStoredPlan(next)
+    setPlanId(next)
   }, [])
 
   useEffect(() => {
     refreshUsage()
   }, [refreshUsage])
 
-  const setPlan = useCallback((next: PlanId) => {
-    setStoredPlan(next)
-    setPlanId(next)
-  }, [])
+  useEffect(() => {
+    let cancelled = false
+
+    void fetchBillingStatus()
+      .then((status) => {
+        if (cancelled) return
+        applyPlan(status.planId)
+        setHasSubscription(status.hasSubscription)
+      })
+      .catch(() => {
+        if (cancelled) return
+        applyPlan(getStoredPlan())
+      })
+      .finally(() => {
+        if (!cancelled) setBillingLoaded(true)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [applyPlan])
+
+  const setPlan = useCallback(
+    (next: PlanId) => {
+      if (import.meta.env.PROD && next !== 'free') {
+        return
+      }
+      applyPlan(next)
+    },
+    [applyPlan],
+  )
+
+  const syncFromBilling = useCallback((plan: PlanId, subscription = false) => {
+    applyPlan(plan)
+    setHasSubscription(subscription)
+  }, [applyPlan])
 
   const plan = getPlan(planId)
 
@@ -40,8 +80,11 @@ export function usePlan() {
     plan,
     plans: PLANS,
     usage,
+    billingLoaded,
+    hasSubscription,
     refreshUsage,
     setPlan,
+    syncFromBilling,
     can: (feature: PlanFeature) => canUsePlanFeature(planId, feature),
     canAddFlipbook: () => canAddFlipbook(planId, usage),
     canAddFolder: () => canAddFolder(planId, usage),

@@ -26,6 +26,10 @@ function getStripe(): Stripe {
   return stripeClient
 }
 
+export function getStripeClient(): Stripe {
+  return getStripe()
+}
+
 function appOrigin() {
   return clientUrl.replace(/\/$/, '')
 }

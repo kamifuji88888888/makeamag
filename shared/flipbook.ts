@@ -96,6 +96,8 @@ export interface FlipbookStoredMeta extends FlipbookPublicMeta {
   stripePriceId?: string
   stripeProductId?: string
   pdfKey: string
+  billingAccountId?: string
+  pdfSizeBytes?: number
 }
 
 export const DEFAULT_PUBLICATION: PublicationInfo = {

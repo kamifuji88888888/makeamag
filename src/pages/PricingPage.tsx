@@ -1,16 +1,23 @@
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { isPaidPlan } from '../../shared/billing'
 import {
   formatPlanPrice,
   PLAN_ORDER,
   type PlanId,
 } from '../../shared/plans'
 import { usePlanContext } from '../context/PlanContext'
+import {
+  openBillingPortal,
+  startPlanCheckout,
+  verifyPlanCheckout,
+} from '../lib/billingApi'
+import { fetchStripeStatus } from '../lib/api'
 
 const COMPARE_ROWS: { label: string; values: Record<PlanId, string | boolean> }[] = [
-  { label: 'Flipbooks', values: { free: '3', starter: '25', pro: 'Unlimited', publisher: 'Unlimited' } },
+  { label: 'Flipbooks', values: { free: '5', starter: '25', pro: 'Unlimited', publisher: 'Unlimited' } },
   { label: 'Pages per flipbook', values: { free: '30', starter: '150', pro: '500', publisher: 'Unlimited' } },
-  { label: 'Max PDF size', values: { free: '15 MB', starter: '25 MB', pro: '100 MB', publisher: '250 MB' } },
+  { label: 'Max PDF size', values: { free: '25 MB', starter: '50 MB', pro: '100 MB', publisher: '250 MB' } },
   { label: 'Video embeds', values: { free: false, starter: '3 / book', pro: 'Unlimited', publisher: 'Unlimited' } },
   { label: 'Password protection', values: { free: false, starter: true, pro: true, publisher: true } },
   { label: 'Reader paywall', values: { free: false, starter: false, pro: true, publisher: true } },
@@ -38,16 +45,106 @@ function CellValue({ value }: { value: string | boolean }) {
 
 export function PricingPage() {
   const navigate = useNavigate()
-  const { planId, setPlan, plans } = usePlanContext()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const { planId, setPlan, syncFromBilling, plans, hasSubscription, billingLoaded } = usePlanContext()
   const [billing, setBilling] = useState<'monthly' | 'annual'>('annual')
+  const [billingEnabled, setBillingEnabled] = useState(false)
+  const [checkoutPlanId, setCheckoutPlanId] = useState<PlanId | null>(null)
+  const [portalLoading, setPortalLoading] = useState(false)
+  const [notice, setNotice] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
-  function handleSelectPlan(id: PlanId) {
-    setPlan(id)
-    if (id === 'publisher') {
-      window.location.href = 'mailto:sales@makeamag.com?subject=MakeAMag%20Publisher%20plan'
+  useEffect(() => {
+    void fetchStripeStatus().then((status) => {
+      setBillingEnabled(Boolean(status.billingEnabled))
+    })
+  }, [])
+
+  useEffect(() => {
+    const billingResult = searchParams.get('billing')
+    const sessionId = searchParams.get('session_id')
+
+    if (billingResult === 'canceled') {
+      setNotice('Checkout canceled. Your plan was not changed.')
+      setSearchParams({}, { replace: true })
       return
     }
-    navigate('/')
+
+    if (billingResult !== 'success' || !sessionId) return
+
+    void verifyPlanCheckout(sessionId)
+      .then((status) => {
+        syncFromBilling(status.planId, status.hasSubscription)
+        setNotice(`You're now on ${plans[status.planId].name}. Thanks for subscribing!`)
+        setSearchParams({}, { replace: true })
+      })
+      .catch((err: unknown) => {
+        const message = err instanceof Error ? err.message : 'Could not verify checkout'
+        setError(message)
+        setSearchParams({}, { replace: true })
+      })
+  }, [plans, searchParams, setSearchParams, syncFromBilling])
+
+  async function handleSelectPlan(id: PlanId) {
+    setError(null)
+
+    if (id === 'free') {
+      if (hasSubscription) {
+        try {
+          setPortalLoading(true)
+          const url = await openBillingPortal()
+          window.location.href = url
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : 'Could not open billing portal'
+          setError(message)
+        } finally {
+          setPortalLoading(false)
+        }
+        return
+      }
+      setPlan('free')
+      navigate('/')
+      return
+    }
+
+    if (!billingEnabled) {
+      setError('Stripe billing is not configured yet. Add plan price IDs in Railway to enable checkout.')
+      return
+    }
+
+    try {
+      setCheckoutPlanId(id)
+      const url = await startPlanCheckout(id, billing)
+      window.location.href = url
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Could not start checkout'
+      setError(message)
+      setCheckoutPlanId(null)
+    }
+  }
+
+  async function handleManageBilling() {
+    setError(null)
+    try {
+      setPortalLoading(true)
+      const url = await openBillingPortal()
+      window.location.href = url
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Could not open billing portal'
+      setError(message)
+    } finally {
+      setPortalLoading(false)
+    }
+  }
+
+  function buttonLabel(id: PlanId, isCurrent: boolean): string {
+    if (checkoutPlanId === id) return 'Redirecting…'
+    if (isCurrent && hasSubscription) return 'Current plan'
+    if (isCurrent) return 'Current plan'
+    if (id === 'free' && hasSubscription) return 'Manage subscription'
+    if (id === 'free') return 'Start free'
+    if (!billingEnabled && isPaidPlan(id)) return 'Coming soon'
+    return plans[id].cta
   }
 
   return (
@@ -57,9 +154,21 @@ export function PricingPage() {
           <Link to="/" className="text-[1.0625rem] font-semibold tracking-tight text-apple-text">
             MakeAMag
           </Link>
-          <Link to="/" className="apple-btn-ghost">
-            Back to app
-          </Link>
+          <div className="flex items-center gap-2">
+            {hasSubscription && (
+              <button
+                type="button"
+                onClick={() => void handleManageBilling()}
+                disabled={portalLoading}
+                className="apple-btn-ghost"
+              >
+                {portalLoading ? 'Opening…' : 'Manage billing'}
+              </button>
+            )}
+            <Link to="/" className="apple-btn-ghost">
+              Back to app
+            </Link>
+          </div>
         </div>
       </header>
 
@@ -70,8 +179,8 @@ export function PricingPage() {
             Plans for every publisher.
           </h1>
           <p className="apple-hero-subtitle mx-auto mt-5 max-w-[640px]">
-            Start free, then upgrade when you need password protection, branding, analytics, and more.
-            No surprise ad overlays on your content.
+            Lead capture from $14/mo — Issuu charges $188. Custom domains on Pro for $29/mo — not $85.
+            No ads on your content, ever.
           </p>
 
           <div className="mt-8 inline-flex rounded-full bg-apple-gray p-1">
@@ -98,11 +207,27 @@ export function PricingPage() {
           </div>
         </div>
 
+        {(notice || error) && (
+          <div className="mx-auto mt-8 max-w-[680px]">
+            {notice && (
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                {notice}
+              </div>
+            )}
+            {error && (
+              <div className="mt-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+                {error}
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="mx-auto mt-12 grid max-w-[1080px] gap-5 lg:grid-cols-4">
           {PLAN_ORDER.map((id) => {
             const plan = plans[id]
-            const isCurrent = planId === id
+            const isCurrent = billingLoaded && planId === id
             const price = formatPlanPrice(plan, billing)
+            const isLoading = checkoutPlanId === id || (portalLoading && id === 'free')
             return (
               <div
                 key={id}
@@ -137,13 +262,15 @@ export function PricingPage() {
                 </ul>
                 <button
                   type="button"
-                  onClick={() => handleSelectPlan(id)}
+                  onClick={() => void handleSelectPlan(id)}
+                  disabled={isLoading || (isCurrent && id !== 'free' && hasSubscription)}
                   className={[
                     'mt-8 w-full',
                     plan.highlighted ? 'apple-btn-primary' : 'apple-btn-secondary',
+                    isCurrent && id !== 'free' && hasSubscription ? 'opacity-60' : '',
                   ].join(' ')}
                 >
-                  {isCurrent ? 'Current plan' : plan.cta}
+                  {buttonLabel(id, isCurrent)}
                 </button>
               </div>
             )
@@ -151,7 +278,9 @@ export function PricingPage() {
         </div>
 
         <p className="mx-auto mt-8 max-w-[640px] text-center text-sm text-apple-muted">
-          Billing integration coming soon — plan selection is saved locally for now so you can preview limits and upgrade flows.
+          {billingEnabled
+            ? 'Secure checkout powered by Stripe. Subscriptions sync automatically to this browser.'
+            : 'Add Stripe price IDs on the server to enable live checkout. Until then, paid plans cannot be purchased.'}
         </p>
 
         <section className="mx-auto mt-20 max-w-[1080px]">
@@ -193,12 +322,12 @@ export function PricingPage() {
           <div className="mt-8 grid gap-4 text-left md:grid-cols-3">
             {[
               {
-                title: 'Transparent tiers',
-                desc: 'Custom branding and analytics on Pro — not locked behind a $188/mo tier.',
+                title: 'Lead capture at Starter',
+                desc: 'Issuu locks lead capture behind $188/mo. MakeAMag includes it from $14/mo annual.',
               },
               {
                 title: 'Your brand first',
-                desc: 'White-label viewer, custom domains, and no third-party ads on your publications.',
+                desc: 'White-label viewer and custom domain on Pro — features others charge $85+/mo for.',
               },
               {
                 title: 'Built for magazines',

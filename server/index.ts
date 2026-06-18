@@ -43,6 +43,8 @@ import { createDomainRegistry } from './domains.js'
 import { createAnalyticsStore } from './analytics.js'
 import { createLeadsStore, isValidLeadEmail } from './leads.js'
 import { createStorage } from './storage/index.js'
+import { buildAdminMetrics, isAdminAuthorized } from './adminMetrics.js'
+import { createBillingStore, isBillingConfigured } from './billing.js'
 import {
   createReaderCheckoutSession,
   createStripeConnectLink,
@@ -62,6 +64,7 @@ const storage = createStorage()
 const domains = createDomainRegistry(DATA_DIR)
 const analytics = createAnalyticsStore(DATA_DIR)
 const leads = createLeadsStore(DATA_DIR)
+const billing = createBillingStore(DATA_DIR)
 
 const app = express()
 app.use(cors())
@@ -72,6 +75,17 @@ app.use((req, res, next) => {
   }
   next()
 })
+
+app.post('/api/billing/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  try {
+    await billing.handleWebhook(req.body as Buffer, req.headers['stripe-signature'] as string | undefined)
+    res.json({ received: true })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Webhook handling failed'
+    res.status(400).json({ error: message })
+  }
+})
+
 app.use(express.json({ limit: '1mb' }))
 
 const upload = multer({
@@ -188,6 +202,8 @@ app.post('/api/flipbooks', upload.single('pdf'), async (req, res) => {
     )
     const subscriberAccessCode =
       typeof req.body.subscriberAccessCode === 'string' ? req.body.subscriberAccessCode.trim() : ''
+    const billingAccountId =
+      typeof req.body.billingAccountId === 'string' ? req.body.billingAccountId.trim() : ''
     const pdfKey = await storage.savePdf(id, req.file.buffer)
 
     const meta: FlipbookStoredMeta = {
@@ -203,6 +219,8 @@ app.post('/api/flipbooks', upload.single('pdf'), async (req, res) => {
       monetization,
       leadCapture,
       pdfKey,
+      pdfSizeBytes: req.file.size,
+      ...(billingAccountId ? { billingAccountId } : {}),
       isPasswordProtected: Boolean(password),
       hasSubscriberAccess: Boolean(subscriberAccessCode),
       ...(password ? { passwordHash: await hashPassword(password) } : {}),
@@ -455,8 +473,104 @@ app.patch('/api/flipbooks/:id', async (req, res) => {
   res.json(toPublicMeta(meta))
 })
 
+app.get('/api/admin/metrics', async (req, res) => {
+  if (!isAdminAuthorized(req.headers.authorization, process.env.ADMIN_SECRET)) {
+    res.status(401).json({ error: 'Unauthorized' })
+    return
+  }
+
+  try {
+    const metrics = await buildAdminMetrics(storage, path.join(DATA_DIR, 'billing'))
+    res.json(metrics)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to load admin metrics'
+    res.status(500).json({ error: message })
+  }
+})
+
 app.get('/api/stripe/status', (_req, res) => {
-  res.json({ configured: isStripeConfigured() })
+  res.json({
+    configured: isStripeConfigured(),
+    billingEnabled: isBillingConfigured(),
+  })
+})
+
+app.get('/api/billing/status', async (req, res) => {
+  const accountId = typeof req.query.accountId === 'string' ? req.query.accountId.trim() : ''
+  if (!accountId) {
+    res.status(400).json({ error: 'accountId is required' })
+    return
+  }
+
+  try {
+    const status = await billing.getStatus(accountId)
+    res.json(status)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to load billing status'
+    res.status(500).json({ error: message })
+  }
+})
+
+app.post('/api/billing/checkout', async (req, res) => {
+  try {
+    const { accountId, planId, billing, email } = req.body as {
+      accountId?: string
+      planId?: string
+      billing?: 'monthly' | 'annual'
+      email?: string
+    }
+
+    if (!accountId?.trim()) {
+      res.status(400).json({ error: 'accountId is required' })
+      return
+    }
+    if (planId !== 'starter' && planId !== 'pro' && planId !== 'publisher') {
+      res.status(400).json({ error: 'A paid plan is required for checkout' })
+      return
+    }
+    if (billing !== 'monthly' && billing !== 'annual') {
+      res.status(400).json({ error: 'billing must be monthly or annual' })
+      return
+    }
+
+    const url = await billing.createCheckoutSession(accountId.trim(), planId, billing, email)
+    res.json({ url })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to create checkout session'
+    res.status(500).json({ error: message })
+  }
+})
+
+app.post('/api/billing/verify', async (req, res) => {
+  try {
+    const { accountId, sessionId } = req.body as { accountId?: string; sessionId?: string }
+    if (!accountId?.trim() || !sessionId?.trim()) {
+      res.status(400).json({ error: 'accountId and sessionId are required' })
+      return
+    }
+
+    const status = await billing.verifyCheckoutSession(accountId.trim(), sessionId.trim())
+    res.json(status)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to verify checkout session'
+    res.status(400).json({ error: message })
+  }
+})
+
+app.post('/api/billing/portal', async (req, res) => {
+  try {
+    const { accountId } = req.body as { accountId?: string }
+    if (!accountId?.trim()) {
+      res.status(400).json({ error: 'accountId is required' })
+      return
+    }
+
+    const url = await billing.createPortalSession(accountId.trim())
+    res.json({ url })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to open billing portal'
+    res.status(500).json({ error: message })
+  }
 })
 
 app.post('/api/flipbooks/:id/stripe/connect', async (req, res) => {

@@ -5,6 +5,7 @@ import { formatByteSize } from '../../shared/plans'
 import { planBadgeClass, UpgradePrompt } from '../components/UpgradePrompt'
 import { usePlanContext } from '../context/PlanContext'
 import { planLimitMessage, sanitizeBrandingForPlan, sanitizeLeadCaptureForPlan, sanitizeMonetizationForPlan } from '../lib/planStorage'
+import { getBillingAccountId } from '../lib/billingStorage'
 import type {
   BrandingConfig,
   LeadCaptureConfig,
@@ -571,6 +572,7 @@ export function EditorPage() {
           const meta = await publishFlipbook(state.pdfFile, state.videoEmbeds, {
             password: password ?? state.publishPassword,
             planId: plan.planId,
+            billingAccountId: getBillingAccountId(),
             ...publisherPayload(state, plan.planId),
           })
           library.markPublished(state.libraryEntryId, {
@@ -691,7 +693,7 @@ export function EditorPage() {
           <>
             <section className="px-6 pb-12 pt-16 text-center md:pt-20">
               <div className="mx-auto max-w-[680px]">
-                <h1 className="apple-hero-title">PDFs, reimagined.</h1>
+                <h1 className="apple-hero-title">Make a Mag! In One Click!</h1>
                 <p className="apple-hero-subtitle mx-auto mt-5 max-w-[580px]">
                   Upload a brochure or magazine. Add videos, links, and a table of contents.
                   Share a beautiful flipbook — anywhere.

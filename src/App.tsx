@@ -1,6 +1,7 @@
-import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { PlanProvider } from './context/PlanContext'
 import { useHostContext } from './hooks/useHostContext'
+import { AdminPage } from './pages/AdminPage'
 import { EditorPage } from './pages/EditorPage'
 import { EmbedPage } from './pages/EmbedPage'
 import { FlipbookViewScreen } from './pages/FlipbookViewScreen'
@@ -33,8 +34,10 @@ function App() {
         <Routes>
           <Route path="/" element={<HomeRoute />} />
           <Route path="/pricing" element={<PricingPage />} />
+          <Route path="/admin" element={<AdminPage />} />
           <Route path="/view/:id" element={<ViewPage />} />
           <Route path="/embed/:id" element={<EmbedPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
     </PlanProvider>
