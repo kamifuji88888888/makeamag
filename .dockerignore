@@ -9,3 +9,6 @@ server/data
 .DS_Store
 .cursor
 agent-transcripts
+test-*.pdf
+scripts/test-upload.mjs
+public/pdfjs
