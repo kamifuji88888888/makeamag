@@ -288,12 +288,19 @@ export function PricingPage() {
             Compare plans
           </h2>
           <div className="apple-card overflow-x-auto">
-            <table className="w-full min-w-[720px] text-left text-sm">
+            <table className="w-full min-w-[720px] table-fixed text-sm">
+              <colgroup>
+                <col className="w-[34%]" />
+                <col className="w-[16.5%]" />
+                <col className="w-[16.5%]" />
+                <col className="w-[16.5%]" />
+                <col className="w-[16.5%]" />
+              </colgroup>
               <thead>
                 <tr className="border-b border-apple-border-light">
-                  <th className="px-4 py-3 font-medium text-apple-muted">Feature</th>
+                  <th className="px-4 py-3 text-left font-medium text-apple-muted">Feature</th>
                   {PLAN_ORDER.map((id) => (
-                    <th key={id} className="px-4 py-3 font-medium text-apple-text">
+                    <th key={id} className="px-4 py-3 text-center font-medium text-apple-text">
                       {plans[id].name}
                     </th>
                   ))}
@@ -302,7 +309,7 @@ export function PricingPage() {
               <tbody>
                 {COMPARE_ROWS.map((row) => (
                   <tr key={row.label} className="border-b border-apple-border-light last:border-0">
-                    <td className="px-4 py-3 text-apple-muted">{row.label}</td>
+                    <td className="px-4 py-3 text-left text-apple-muted">{row.label}</td>
                     {PLAN_ORDER.map((id) => (
                       <td key={id} className="px-4 py-3 text-center">
                         <CellValue value={row.values[id]} />
