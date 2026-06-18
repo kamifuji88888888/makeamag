@@ -513,7 +513,7 @@ app.get('/api/billing/status', async (req, res) => {
 
 app.post('/api/billing/checkout', async (req, res) => {
   try {
-    const { accountId, planId, billing, email } = req.body as {
+    const { accountId, planId, billing: billingInterval, email } = req.body as {
       accountId?: string
       planId?: string
       billing?: 'monthly' | 'annual'
@@ -528,12 +528,12 @@ app.post('/api/billing/checkout', async (req, res) => {
       res.status(400).json({ error: 'A paid plan is required for checkout' })
       return
     }
-    if (billing !== 'monthly' && billing !== 'annual') {
+    if (billingInterval !== 'monthly' && billingInterval !== 'annual') {
       res.status(400).json({ error: 'billing must be monthly or annual' })
       return
     }
 
-    const url = await billing.createCheckoutSession(accountId.trim(), planId, billing, email)
+    const url = await billing.createCheckoutSession(accountId.trim(), planId, billingInterval, email)
     res.json({ url })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to create checkout session'

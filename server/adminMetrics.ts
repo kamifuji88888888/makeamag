@@ -36,10 +36,22 @@ export async function buildAdminMetrics(
   storage: StorageProvider,
   billingDir: string,
 ): Promise<AdminMetricsSummary> {
-  const [flipbooks, billingRecords] = await Promise.all([
-    storage.listAllMeta(),
-    readAllBillingRecords(billingDir),
-  ])
+  let flipbooks: Awaited<ReturnType<StorageProvider['listAllMeta']>> = []
+  let warning: string | undefined
+
+  try {
+    flipbooks = await storage.listAllMeta()
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Storage listing failed'
+    if (message.includes('bucket does not exist') || message.includes('NoSuchBucket')) {
+      warning =
+        'Could not read flipbooks from S3 — check S3_BUCKET in Railway Variables (yours should be makeamag-production). Billing data below is still shown.'
+    } else {
+      warning = `Could not read flipbooks from storage: ${message}`
+    }
+  }
+
+  const billingRecords = await readAllBillingRecords(billingDir)
 
   const billingByAccount = new Map(billingRecords.map((record) => [record.accountId, record]))
   const accountStats = new Map<string, { flipbookCount: number; storageBytes: number }>()
@@ -97,6 +109,7 @@ export async function buildAdminMetrics(
 
   return {
     generatedAt: new Date().toISOString(),
+    ...(warning ? { warning } : {}),
     totals: {
       flipbooks: flipbooks.length,
       storageBytes: totalStorageBytes,

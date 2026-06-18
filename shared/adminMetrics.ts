@@ -12,6 +12,7 @@ export interface AdminAccountMetric {
 
 export interface AdminMetricsSummary {
   generatedAt: string
+  warning?: string
   totals: {
     flipbooks: number
     storageBytes: number
