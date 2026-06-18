@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import type { PlanFeature, PlanId } from '../../shared/plans'
 import { formatByteSize } from '../../shared/plans'
-import { planBadgeClass, UpgradePrompt } from '../components/UpgradePrompt'
+import { UpgradePrompt } from '../components/UpgradePrompt'
+import { AppNav } from '../components/AppNav'
 import { usePlanContext } from '../context/PlanContext'
 import { planLimitMessage, sanitizeBrandingForPlan, sanitizeLeadCaptureForPlan, sanitizeMonetizationForPlan } from '../lib/planStorage'
 import { getBillingAccountId } from '../lib/billingStorage'
@@ -686,43 +687,25 @@ export function EditorPage() {
 
   return (
     <div className="min-h-full bg-apple-bg">
-      <header className="apple-nav">
-        <div className="mx-auto flex h-[52px] max-w-[980px] items-center justify-between px-6">
-          <Link to="/" className="text-[1.0625rem] font-semibold tracking-tight text-apple-text">
-            MakeAMag
-          </Link>
-          <div className="flex items-center gap-2">
-            <Link to="/pricing" className="apple-btn-ghost">
-              Pricing
-            </Link>
-            <span
-              className={[
-                'hidden rounded-full px-2.5 py-1 text-xs font-medium sm:inline',
-                planBadgeClass(plan.planId),
-              ].join(' ')}
-            >
-              {plan.plan.name}
+      <AppNav>
+        <button
+          type="button"
+          onClick={() => setShowLibrary(true)}
+          className="apple-btn-ghost"
+        >
+          My flipbooks
+          {library.folderCounts.all > 0 && (
+            <span className="ml-1.5 rounded-full bg-apple-gray px-2 py-0.5 text-xs tabular-nums text-apple-muted">
+              {library.folderCounts.all}
             </span>
-            <button
-              type="button"
-              onClick={() => setShowLibrary(true)}
-              className="apple-btn-ghost"
-            >
-              My flipbooks
-              {library.folderCounts.all > 0 && (
-                <span className="ml-1.5 rounded-full bg-apple-gray px-2 py-0.5 text-xs tabular-nums text-apple-muted">
-                  {library.folderCounts.all}
-                </span>
-              )}
-            </button>
-            {state.status === 'ready' && (
-              <button type="button" onClick={handleUploadNew} className="apple-btn-secondary">
-                Upload another
-              </button>
-            )}
-          </div>
-        </div>
-      </header>
+          )}
+        </button>
+        {state.status === 'ready' && (
+          <button type="button" onClick={handleUploadNew} className="apple-btn-secondary">
+            Upload another
+          </button>
+        )}
+      </AppNav>
 
       <main>
         {state.status === 'idle' && (

@@ -67,6 +67,14 @@ function createPageCanvas(pageViewport: { width: number; height: number }) {
   return { canvas, context }
 }
 
+function canvasToDataUrl(canvas: HTMLCanvasElement): string {
+  const jpeg = canvas.toDataURL('image/jpeg', 0.88)
+  if (jpeg.startsWith('data:image/jpeg')) {
+    return jpeg
+  }
+  return canvas.toDataURL('image/png')
+}
+
 async function renderPageToDataUrl(
   page: PdfJs.PDFPageProxy,
   pageViewport: ReturnType<PdfJs.PDFPageProxy['getViewport']>,
@@ -85,21 +93,16 @@ async function renderPageToDataUrl(
 
   await renderTask.promise
 
-  return canvas.toDataURL('image/png')
+  return canvasToDataUrl(canvas)
 }
 
-async function extractPageText(page: PdfJs.PDFPageProxy): Promise<string> {
+async function destroyPdf(pdf: PdfJs.PDFDocumentProxy) {
   try {
-    const content = await page.getTextContent()
-    const items = Array.isArray(content.items) ? content.items : []
-    return items
-      .map((item) => ('str' in item ? item.str : ''))
-      .join(' ')
-      .replace(/\s+/g, ' ')
-      .trim()
+    if (typeof pdf.destroy === 'function') {
+      await pdf.destroy()
+    }
   } catch {
-    // pdf.js getTextContent() throws in WebKit/Safari; search still works without page text.
-    return ''
+    // Ignore cleanup failures after a successful render.
   }
 }
 
@@ -116,12 +119,16 @@ async function renderPages(
   const scale = Math.min(2, MAX_RENDER_WIDTH / baseViewport.width)
 
   for (let pageNum = 1; pageNum <= numPages; pageNum++) {
-    const page = await pdf.getPage(pageNum)
-    const pageViewport = page.getViewport({ scale })
-
-    images.push(await renderPageToDataUrl(page, pageViewport))
-    pageTexts.push(await extractPageText(page))
-    onProgress?.(pageNum / numPages)
+    try {
+      const page = await pdf.getPage(pageNum)
+      const pageViewport = page.getViewport({ scale })
+      images.push(await renderPageToDataUrl(page, pageViewport))
+      pageTexts.push('')
+      onProgress?.(pageNum / numPages)
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error)
+      throw new Error(`Failed to render page ${pageNum}: ${detail}`)
+    }
   }
 
   const aspectViewport = firstPage.getViewport({ scale })
@@ -146,7 +153,7 @@ export async function renderPdfFromBuffer(
   try {
     return await renderPages(pdf, onProgress)
   } finally {
-    await pdf.destroy()
+    await destroyPdf(pdf)
   }
 }
 
@@ -159,7 +166,7 @@ export async function renderPdfFromUrl(
   try {
     return await renderPages(pdf, onProgress)
   } finally {
-    await pdf.destroy()
+    await destroyPdf(pdf)
   }
 }
 
@@ -210,6 +217,6 @@ export async function extractPdfOutline(file: File): Promise<TocEntry[]> {
     if (!outline?.length) return []
     return flattenOutline(pdf, outline)
   } finally {
-    await pdf.destroy()
+    await destroyPdf(pdf)
   }
 }

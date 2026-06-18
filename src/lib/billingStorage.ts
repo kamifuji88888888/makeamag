@@ -20,3 +20,11 @@ export function getBillingAccountId(): string {
     return createBillingAccountId()
   }
 }
+
+export function setBillingAccountId(accountId: string) {
+  try {
+    localStorage.setItem(BILLING_ACCOUNT_KEY, accountId.trim())
+  } catch {
+    // ignore storage failures
+  }
+}

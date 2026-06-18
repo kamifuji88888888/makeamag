@@ -2,8 +2,12 @@ import type { BillingAccountStatus, BillingInterval } from '../../shared/billing
 import type { PlanId } from '../../shared/plans'
 import { getBillingAccountId } from './billingStorage'
 
+const fetchOptions: RequestInit = {
+  credentials: 'include',
+}
+
 export async function fetchBillingStatus(accountId = getBillingAccountId()): Promise<BillingAccountStatus> {
-  const response = await fetch(`/api/billing/status?accountId=${encodeURIComponent(accountId)}`)
+  const response = await fetch(`/api/billing/status?accountId=${encodeURIComponent(accountId)}`, fetchOptions)
   if (!response.ok) {
     throw new Error('Failed to load billing status')
   }
@@ -19,6 +23,7 @@ export async function startPlanCheckout(
   const response = await fetch('/api/billing/checkout', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify({
       accountId,
       planId,
@@ -43,6 +48,7 @@ export async function verifyPlanCheckout(
   const response = await fetch('/api/billing/verify', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify({ accountId, sessionId }),
   })
 
@@ -58,6 +64,7 @@ export async function openBillingPortal(accountId = getBillingAccountId()): Prom
   const response = await fetch('/api/billing/portal', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify({ accountId }),
   })
 

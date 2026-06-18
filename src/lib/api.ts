@@ -155,6 +155,7 @@ export async function publishFlipbook(
 
   const response = await fetch(`${API_BASE}/flipbooks`, {
     method: 'POST',
+    credentials: 'include',
     body: formData,
   })
 
@@ -177,6 +178,7 @@ export async function updateFlipbook(
   const response = await fetch(`${API_BASE}/flipbooks/${id}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify(updates),
   })
 
@@ -260,7 +262,9 @@ export async function submitLeadCapture(
 export async function fetchCapturedLeads(
   id: string,
 ): Promise<{ leads: CapturedLead[]; total: number }> {
-  const response = await fetch(`${API_BASE}/flipbooks/${id}/leads`)
+  const response = await fetch(`${API_BASE}/flipbooks/${id}/leads`, {
+    credentials: 'include',
+  })
   if (!response.ok) {
     const body = (await response.json().catch(() => ({}))) as { error?: string }
     throw new Error(body.error ?? 'Failed to load captured leads')
@@ -279,6 +283,7 @@ export async function fetchStripeStatus(): Promise<{ configured: boolean; billin
 export async function startStripeConnect(flipbookId: string): Promise<string> {
   const response = await fetch(`${API_BASE}/flipbooks/${flipbookId}/stripe/connect`, {
     method: 'POST',
+    credentials: 'include',
   })
 
   if (!response.ok) {
@@ -358,6 +363,7 @@ export async function uploadFlipbookLogo(id: string, file: File): Promise<Flipbo
 
   const response = await fetch(`${API_BASE}/flipbooks/${id}/logo`, {
     method: 'POST',
+    credentials: 'include',
     body: formData,
   })
 
@@ -372,6 +378,7 @@ export async function uploadFlipbookLogo(id: string, file: File): Promise<Flipbo
 export async function deleteFlipbookLogo(id: string): Promise<FlipbookPublicMeta> {
   const response = await fetch(`${API_BASE}/flipbooks/${id}/logo`, {
     method: 'DELETE',
+    credentials: 'include',
   })
 
   if (!response.ok) {
@@ -443,7 +450,9 @@ export function getPdfUrl(id: string): string {
 }
 
 export async function fetchFlipbookAnalytics(id: string): Promise<AnalyticsSummary> {
-  const response = await fetch(`${API_BASE}/flipbooks/${id}/analytics`)
+  const response = await fetch(`${API_BASE}/flipbooks/${id}/analytics`, {
+    credentials: 'include',
+  })
   if (!response.ok) {
     throw new Error('Failed to load analytics')
   }

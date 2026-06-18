@@ -1,7 +1,9 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { AuthProvider } from './context/AuthContext'
 import { PlanProvider } from './context/PlanContext'
 import { useHostContext } from './hooks/useHostContext'
 import { AdminPage } from './pages/AdminPage'
+import { AuthPage } from './pages/AuthPage'
 import { EditorPage } from './pages/EditorPage'
 import { EmbedPage } from './pages/EmbedPage'
 import { FlipbookViewScreen } from './pages/FlipbookViewScreen'
@@ -29,18 +31,22 @@ function HomeRoute() {
 
 function App() {
   return (
-    <PlanProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<HomeRoute />} />
-          <Route path="/pricing" element={<PricingPage />} />
-          <Route path="/admin" element={<AdminPage />} />
-          <Route path="/view/:id" element={<ViewPage />} />
-          <Route path="/embed/:id" element={<EmbedPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </BrowserRouter>
-    </PlanProvider>
+    <AuthProvider>
+      <PlanProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<HomeRoute />} />
+            <Route path="/auth" element={<AuthPage />} />
+            <Route path="/auth/verify" element={<AuthPage />} />
+            <Route path="/pricing" element={<PricingPage />} />
+            <Route path="/admin" element={<AdminPage />} />
+            <Route path="/view/:id" element={<ViewPage />} />
+            <Route path="/embed/:id" element={<EmbedPage />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </BrowserRouter>
+      </PlanProvider>
+    </AuthProvider>
   )
 }
 

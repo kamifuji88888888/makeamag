@@ -30,15 +30,23 @@ import {
   toPublicMeta,
 } from '../shared/flipbook.js'
 import {
+  clearSessionCookie,
   createAccessToken,
   createLeadCaptureToken,
+  createMagicLinkToken,
   createMonetizationToken,
+  createSessionToken,
   extractBearerToken,
   hashPassword,
+  readSessionFromRequest,
+  setSessionCookie,
   verifyAccessToken,
+  verifyMagicLinkToken,
   verifyMonetizationToken,
   verifyPassword,
 } from './auth.js'
+import { sendMagicLinkEmail, isMagicLinkEnabled } from './email.js'
+import { createUsersStore, type UserRecord } from './users.js'
 import { createDomainRegistry } from './domains.js'
 import { createAnalyticsStore } from './analytics.js'
 import { createLeadsStore, isValidLeadEmail } from './leads.js'
@@ -65,6 +73,7 @@ const domains = createDomainRegistry(DATA_DIR)
 const analytics = createAnalyticsStore(DATA_DIR)
 const leads = createLeadsStore(DATA_DIR)
 const billing = createBillingStore(DATA_DIR)
+const users = createUsersStore(DATA_DIR)
 
 const app = express()
 app.use(cors())
@@ -111,6 +120,22 @@ const logoUpload = multer({
     }
   },
 })
+
+function canEditFlipbook(
+  meta: FlipbookStoredMeta,
+  session: ReturnType<typeof readSessionFromRequest>,
+): boolean {
+  if (!meta.ownerId) return true
+  return session?.userId === meta.ownerId
+}
+
+function billingAccountForSession(
+  session: ReturnType<typeof readSessionFromRequest>,
+  fallback?: string,
+): string {
+  if (session?.billingAccountId) return session.billingAccountId
+  return fallback?.trim() || ''
+}
 
 function parseJsonField<T>(raw: unknown, fallback: T): T {
   if (typeof raw !== 'string' || !raw.trim()) return fallback
@@ -162,6 +187,159 @@ app.get('/api/host-context', async (req, res) => {
   res.json({ type: 'editor' })
 })
 
+function startUserSession(res: express.Response, user: UserRecord) {
+  const sessionToken = createSessionToken({
+    userId: user.id,
+    email: user.email,
+    billingAccountId: user.billingAccountId,
+  })
+  setSessionCookie(res, sessionToken, isProduction)
+  return users.toPublic(user)
+}
+
+app.get('/api/auth/config', (_req, res) => {
+  res.json({ magicLinkEnabled: isMagicLinkEnabled() })
+})
+
+app.post('/api/auth/signup', async (req, res) => {
+  try {
+    const { email, password, billingAccountId } = req.body as {
+      email?: string
+      password?: string
+      billingAccountId?: string
+    }
+    if (!email?.trim() || !password) {
+      res.status(400).json({ error: 'Email and password are required' })
+      return
+    }
+
+    const user = await users.createWithPassword(email, password, billingAccountId?.trim())
+    res.status(201).json({ user: startUserSession(res, user) })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to create account'
+    const status = message.includes('already exists') ? 409 : 400
+    res.status(status).json({ error: message })
+  }
+})
+
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body as { email?: string; password?: string }
+    if (!email?.trim() || !password) {
+      res.status(400).json({ error: 'Email and password are required' })
+      return
+    }
+
+    const user = await users.authenticateWithPassword(email, password)
+    if (!user) {
+      res.status(401).json({ error: 'Incorrect email or password' })
+      return
+    }
+
+    res.json({ user: startUserSession(res, user) })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to sign in'
+    res.status(500).json({ error: message })
+  }
+})
+
+app.post('/api/auth/magic-link', async (req, res) => {
+  try {
+    if (!isMagicLinkEnabled() && process.env.NODE_ENV === 'production') {
+      res.status(503).json({ error: 'Email sign-in is not enabled on this server' })
+      return
+    }
+
+    const { email } = req.body as {
+      email?: string
+    }
+    if (!email?.trim() || !email.includes('@')) {
+      res.status(400).json({ error: 'A valid email address is required' })
+      return
+    }
+
+    const token = createMagicLinkToken(email)
+    const delivery = await sendMagicLinkEmail(email.trim(), token)
+    res.json({
+      ok: true,
+      delivered: delivery.delivered,
+      ...(delivery.devLink ? { devLink: delivery.devLink } : {}),
+    })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to send sign-in link'
+    res.status(500).json({ error: message })
+  }
+})
+
+app.post('/api/auth/verify', async (req, res) => {
+  try {
+    const { token, billingAccountId } = req.body as {
+      token?: string
+      billingAccountId?: string
+    }
+    if (!token?.trim()) {
+      res.status(400).json({ error: 'Sign-in token is required' })
+      return
+    }
+
+    const email = verifyMagicLinkToken(token.trim())
+    if (!email) {
+      res.status(400).json({ error: 'This sign-in link is invalid or has expired' })
+      return
+    }
+
+    const user = await users.findOrCreate(email, billingAccountId?.trim())
+    res.json({ user: startUserSession(res, user) })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to verify sign-in link'
+    res.status(500).json({ error: message })
+  }
+})
+
+app.get('/api/auth/me', async (req, res) => {
+  const session = readSessionFromRequest(req)
+  if (!session) {
+    res.status(401).json({ error: 'Not signed in' })
+    return
+  }
+
+  const user = await users.findById(session.userId)
+  if (!user) {
+    clearSessionCookie(res, isProduction)
+    res.status(401).json({ error: 'Not signed in' })
+    return
+  }
+
+  res.json({ user: users.toPublic(user) })
+})
+
+app.post('/api/auth/logout', (req, res) => {
+  clearSessionCookie(res, isProduction)
+  res.status(204).end()
+})
+
+app.get('/api/auth/flipbooks', async (req, res) => {
+  const session = readSessionFromRequest(req)
+  if (!session) {
+    res.status(401).json({ error: 'Sign in to view your published flipbooks' })
+    return
+  }
+
+  const all = await storage.listAllMeta()
+  const owned = all
+    .filter((meta) => meta.ownerId === session.userId)
+    .map((meta) => ({
+      id: meta.id,
+      fileName: meta.fileName,
+      createdAt: meta.createdAt,
+      publication: meta.publication,
+      isPasswordProtected: meta.isPasswordProtected,
+    }))
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+
+  res.json({ flipbooks: owned })
+})
+
 app.post('/api/flipbooks', upload.single('pdf'), async (req, res) => {
   try {
     if (!req.file) {
@@ -202,8 +380,11 @@ app.post('/api/flipbooks', upload.single('pdf'), async (req, res) => {
     )
     const subscriberAccessCode =
       typeof req.body.subscriberAccessCode === 'string' ? req.body.subscriberAccessCode.trim() : ''
-    const billingAccountId =
-      typeof req.body.billingAccountId === 'string' ? req.body.billingAccountId.trim() : ''
+    const session = readSessionFromRequest(req)
+    const billingAccountId = billingAccountForSession(
+      session,
+      typeof req.body.billingAccountId === 'string' ? req.body.billingAccountId : '',
+    )
     const pdfKey = await storage.savePdf(id, req.file.buffer)
 
     const meta: FlipbookStoredMeta = {
@@ -221,6 +402,7 @@ app.post('/api/flipbooks', upload.single('pdf'), async (req, res) => {
       pdfKey,
       pdfSizeBytes: req.file.size,
       ...(billingAccountId ? { billingAccountId } : {}),
+      ...(session ? { ownerId: session.userId } : {}),
       isPasswordProtected: Boolean(password),
       hasSubscriberAccess: Boolean(subscriberAccessCode),
       ...(password ? { passwordHash: await hashPassword(password) } : {}),
@@ -325,6 +507,12 @@ app.get('/api/flipbooks/:id/leads', async (req, res) => {
     return
   }
 
+  const session = readSessionFromRequest(req)
+  if (!canEditFlipbook(meta, session)) {
+    res.status(403).json({ error: 'You do not have permission to view leads for this flipbook' })
+    return
+  }
+
   const captured = await leads.listLeads(meta.id)
   res.json({ leads: captured, total: captured.length })
 })
@@ -361,6 +549,12 @@ app.patch('/api/flipbooks/:id', async (req, res) => {
   const meta = await storage.readMeta(req.params.id)
   if (!meta) {
     res.status(404).json({ error: 'Flipbook not found' })
+    return
+  }
+
+  const session = readSessionFromRequest(req)
+  if (!canEditFlipbook(meta, session)) {
+    res.status(403).json({ error: 'You do not have permission to edit this flipbook' })
     return
   }
 
@@ -586,6 +780,12 @@ app.post('/api/flipbooks/:id/stripe/connect', async (req, res) => {
       return
     }
 
+    const session = readSessionFromRequest(req)
+    if (!canEditFlipbook(meta, session)) {
+      res.status(403).json({ error: 'You do not have permission to edit this flipbook' })
+      return
+    }
+
     const url = await createStripeConnectLink(meta)
     await storage.saveMeta(meta)
     res.json({ url })
@@ -678,6 +878,13 @@ app.post('/api/flipbooks/:id/logo', logoUpload.single('logo'), async (req, res) 
     res.status(404).json({ error: 'Flipbook not found' })
     return
   }
+
+  const session = readSessionFromRequest(req)
+  if (!canEditFlipbook(meta, session)) {
+    res.status(403).json({ error: 'You do not have permission to edit this flipbook' })
+    return
+  }
+
   if (!req.file) {
     res.status(400).json({ error: 'Logo file is required' })
     return
@@ -696,6 +903,12 @@ app.delete('/api/flipbooks/:id/logo', async (req, res) => {
   const meta = await storage.readMeta(req.params.id)
   if (!meta) {
     res.status(404).json({ error: 'Flipbook not found' })
+    return
+  }
+
+  const session = readSessionFromRequest(req)
+  if (!canEditFlipbook(meta, session)) {
+    res.status(403).json({ error: 'You do not have permission to edit this flipbook' })
     return
   }
 
@@ -742,6 +955,12 @@ app.get('/api/flipbooks/:id/analytics', async (req, res) => {
   const meta = await storage.readMeta(req.params.id)
   if (!meta) {
     res.status(404).json({ error: 'Flipbook not found' })
+    return
+  }
+
+  const session = readSessionFromRequest(req)
+  if (!canEditFlipbook(meta, session)) {
+    res.status(403).json({ error: 'You do not have permission to view analytics for this flipbook' })
     return
   }
 

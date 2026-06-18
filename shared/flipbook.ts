@@ -97,6 +97,7 @@ export interface FlipbookStoredMeta extends FlipbookPublicMeta {
   stripeProductId?: string
   pdfKey: string
   billingAccountId?: string
+  ownerId?: string
   pdfSizeBytes?: number
 }
 

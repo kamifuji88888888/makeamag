@@ -6,6 +6,8 @@ import {
   PLAN_ORDER,
   type PlanId,
 } from '../../shared/plans'
+import { AppNav } from '../components/AppNav'
+import { useAuth } from '../context/AuthContext'
 import { usePlanContext } from '../context/PlanContext'
 import {
   openBillingPortal,
@@ -45,6 +47,7 @@ function CellValue({ value }: { value: string | boolean }) {
 
 export function PricingPage() {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
   const { planId, setPlan, syncFromBilling, plans, hasSubscription, billingLoaded } = usePlanContext()
   const [billing, setBilling] = useState<'monthly' | 'annual'>('annual')
@@ -114,7 +117,7 @@ export function PricingPage() {
 
     try {
       setCheckoutPlanId(id)
-      const url = await startPlanCheckout(id, billing)
+      const url = await startPlanCheckout(id, billing, { email: user?.email })
       window.location.href = url
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Could not start checkout'
@@ -149,28 +152,21 @@ export function PricingPage() {
 
   return (
     <div className="min-h-full bg-apple-bg">
-      <header className="apple-nav">
-        <div className="mx-auto flex h-[52px] max-w-[1080px] items-center justify-between px-6">
-          <Link to="/" className="text-[1.0625rem] font-semibold tracking-tight text-apple-text">
-            MakeAMag
-          </Link>
-          <div className="flex items-center gap-2">
-            {hasSubscription && (
-              <button
-                type="button"
-                onClick={() => void handleManageBilling()}
-                disabled={portalLoading}
-                className="apple-btn-ghost"
-              >
-                {portalLoading ? 'Opening…' : 'Manage billing'}
-              </button>
-            )}
-            <Link to="/" className="apple-btn-ghost">
-              Back to app
-            </Link>
-          </div>
-        </div>
-      </header>
+      <AppNav maxWidthClass="max-w-[1080px]">
+        {hasSubscription && (
+          <button
+            type="button"
+            onClick={() => void handleManageBilling()}
+            disabled={portalLoading}
+            className="apple-btn-ghost"
+          >
+            {portalLoading ? 'Opening…' : 'Manage billing'}
+          </button>
+        )}
+        <Link to="/" className="apple-btn-ghost">
+          Back to app
+        </Link>
+      </AppNav>
 
       <main className="px-6 py-16">
         <div className="mx-auto max-w-[980px] text-center">

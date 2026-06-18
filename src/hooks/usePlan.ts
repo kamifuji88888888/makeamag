@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import type { PlanFeature, PlanId } from '../../shared/plans'
 import { getPlan, maxPdfUploadBytes, PLANS } from '../../shared/plans'
 import { fetchBillingStatus } from '../lib/billingApi'
+import { getBillingAccountId } from '../lib/billingStorage'
+import { useAuth } from '../context/AuthContext'
 import {
   analyticsDaysForPlan,
   canAddFlipbook,
@@ -18,6 +20,7 @@ import {
 } from '../lib/planStorage'
 
 export function usePlan() {
+  const { user, loading: authLoading } = useAuth()
   const [planId, setPlanId] = useState<PlanId>(() => getStoredPlan())
   const [usage, setUsage] = useState<PlanUsage>(() => getPlanUsage())
   const [billingLoaded, setBillingLoaded] = useState(false)
@@ -37,9 +40,12 @@ export function usePlan() {
   }, [refreshUsage])
 
   useEffect(() => {
-    let cancelled = false
+    if (authLoading) return
 
-    void fetchBillingStatus()
+    let cancelled = false
+    const accountId = user?.billingAccountId ?? getBillingAccountId()
+
+    void fetchBillingStatus(accountId)
       .then((status) => {
         if (cancelled) return
         applyPlan(status.planId)
@@ -56,7 +62,7 @@ export function usePlan() {
     return () => {
       cancelled = true
     }
-  }, [applyPlan])
+  }, [applyPlan, authLoading, user?.billingAccountId])
 
   const setPlan = useCallback(
     (next: PlanId) => {
