@@ -36,6 +36,27 @@ import { FlipbookViewer } from '../components/FlipbookViewer'
 import { LoadingProgress } from '../components/LoadingProgress'
 import { UploadZone } from '../components/UploadZone'
 
+const TESTIMONIALS = [
+  {
+    quote:
+      'We shipped our alumni magazine in an afternoon. The table of contents and spread view finally feel like a real publication.',
+    name: 'Elowen Marsh',
+    role: 'Editor, Larkspur Quarterly',
+  },
+  {
+    quote:
+      'Issuu wanted $188 a month just for lead capture. MakeAMag gave us password protection and a custom domain for a fraction of that.',
+    name: 'Thaddeus Okonkwo',
+    role: 'Marketing Director, Pemberton & Hale',
+  },
+  {
+    quote:
+      'Our catalog looks white-labeled on our own domain. Clients have no idea we didn’t build the viewer from scratch.',
+    name: 'Mireille Vance',
+    role: 'Creative Lead, Studio Caspian',
+  },
+] as const
+
 type ReadyState = {
   status: 'ready'
   libraryEntryId: string
@@ -725,6 +746,28 @@ export function EditorPage() {
                     </h3>
                     <p className="mt-2 text-[1.0625rem] leading-snug text-apple-muted">{feature.desc}</p>
                   </div>
+                ))}
+              </div>
+            </section>
+
+            <section className="border-t border-apple-border-light px-6 py-20">
+              <div className="mx-auto max-w-[980px] text-center">
+                <p className="apple-section-label">What publishers say</p>
+                <h2 className="mt-3 text-[1.75rem] font-semibold tracking-tight text-apple-text">
+                  Built for real magazines
+                </h2>
+              </div>
+              <div className="mx-auto mt-10 grid max-w-[980px] gap-5 md:grid-cols-3">
+                {TESTIMONIALS.map((testimonial) => (
+                  <figure key={testimonial.name} className="apple-card flex flex-col p-8 text-left">
+                    <blockquote className="flex-1 text-[1.0625rem] leading-relaxed text-apple-text">
+                      &ldquo;{testimonial.quote}&rdquo;
+                    </blockquote>
+                    <figcaption className="mt-6 border-t border-apple-border-light pt-5">
+                      <p className="font-semibold text-apple-text">{testimonial.name}</p>
+                      <p className="mt-0.5 text-sm text-apple-muted">{testimonial.role}</p>
+                    </figcaption>
+                  </figure>
                 ))}
               </div>
             </section>
