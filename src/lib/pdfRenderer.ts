@@ -1,10 +1,8 @@
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs'
+import pdfWorkerUrl from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url'
 import type { TocEntry } from '../../shared/flipbook'
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/legacy/build/pdf.worker.min.mjs',
-  import.meta.url,
-).href
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl
 
 export interface PdfRenderResult {
   images: string[]
@@ -24,8 +22,8 @@ async function loadPdf(data: ArrayBuffer) {
 
 function createPageCanvas(pageViewport: { width: number; height: number }) {
   const canvas = document.createElement('canvas')
-  canvas.width = pageViewport.width
-  canvas.height = pageViewport.height
+  canvas.width = Math.max(1, Math.floor(pageViewport.width))
+  canvas.height = Math.max(1, Math.floor(pageViewport.height))
 
   const context = canvas.getContext('2d', { alpha: false })
   if (!context) {
@@ -41,26 +39,27 @@ function createPageCanvas(pageViewport: { width: number; height: number }) {
 async function renderPageToDataUrl(
   page: pdfjsLib.PDFPageProxy,
   pageViewport: ReturnType<pdfjsLib.PDFPageProxy['getViewport']>,
-  optionalContentConfigPromise?: ReturnType<pdfjsLib.PDFDocumentProxy['getOptionalContentConfig']>,
 ): Promise<string> {
   const { canvas, context } = createPageCanvas(pageViewport)
 
-  await page.render({
+  const renderTask = page.render({
     canvas,
     canvasContext: context,
     viewport: pageViewport,
     intent: 'display',
     annotationMode: pdfjsLib.AnnotationMode.DISABLE,
     background: '#ffffff',
-    optionalContentConfigPromise,
-  }).promise
+  })
+
+  await renderTask.promise
 
   return canvas.toDataURL('image/png')
 }
 
 async function extractPageText(page: pdfjsLib.PDFPageProxy): Promise<string> {
   const content = await page.getTextContent()
-  return content.items
+  const items = Array.isArray(content.items) ? content.items : []
+  return items
     .map((item) => ('str' in item ? item.str : ''))
     .join(' ')
     .replace(/\s+/g, ' ')
@@ -78,18 +77,18 @@ async function renderPages(
   const firstPage = await pdf.getPage(1)
   const baseViewport = firstPage.getViewport({ scale: 1 })
   const scale = Math.min(2, MAX_RENDER_WIDTH / baseViewport.width)
-  const viewport = firstPage.getViewport({ scale })
-  const aspectRatio = viewport.width / viewport.height
-  const optionalContentConfigPromise = pdf.getOptionalContentConfig({ intent: 'display' })
 
   for (let pageNum = 1; pageNum <= numPages; pageNum++) {
     const page = await pdf.getPage(pageNum)
     const pageViewport = page.getViewport({ scale })
 
-    images.push(await renderPageToDataUrl(page, pageViewport, optionalContentConfigPromise))
+    images.push(await renderPageToDataUrl(page, pageViewport))
     pageTexts.push(await extractPageText(page))
     onProgress?.(pageNum / numPages)
   }
+
+  const aspectViewport = firstPage.getViewport({ scale })
+  const aspectRatio = aspectViewport.width / aspectViewport.height
 
   return { images, aspectRatio, pageCount: numPages, pageTexts }
 }
@@ -107,7 +106,11 @@ export async function renderPdfFromBuffer(
   onProgress?: (progress: number) => void,
 ): Promise<PdfRenderResult> {
   const pdf = await loadPdf(data)
-  return renderPages(pdf, onProgress)
+  try {
+    return await renderPages(pdf, onProgress)
+  } finally {
+    await pdf.destroy()
+  }
 }
 
 export async function renderPdfFromUrl(
@@ -115,7 +118,11 @@ export async function renderPdfFromUrl(
   onProgress?: (progress: number) => void,
 ): Promise<PdfRenderResult> {
   const pdf = await pdfjsLib.getDocument({ url, useSystemFonts: true }).promise
-  return renderPages(pdf, onProgress)
+  try {
+    return await renderPages(pdf, onProgress)
+  } finally {
+    await pdf.destroy()
+  }
 }
 
 async function resolveOutlinePageIndex(
@@ -160,7 +167,11 @@ async function flattenOutline(
 export async function extractPdfOutline(file: File): Promise<TocEntry[]> {
   const buffer = await file.arrayBuffer()
   const pdf = await loadPdf(buffer)
-  const outline = await pdf.getOutline()
-  if (!outline?.length) return []
-  return flattenOutline(pdf, outline)
+  try {
+    const outline = await pdf.getOutline()
+    if (!outline?.length) return []
+    return flattenOutline(pdf, outline)
+  } finally {
+    await pdf.destroy()
+  }
 }
