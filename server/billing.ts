@@ -76,24 +76,36 @@ function isActiveStatus(status: BillingStatus): boolean {
   return status === 'active' || status === 'trialing'
 }
 
-function resolvePlanOverride(accountId: string): PlanId | null {
-  const rawPlan = process.env.BILLING_OVERRIDE_PLAN?.trim()
-  if (!rawPlan) return null
+export type BillingOverrideMatcher = (accountId: string) => Promise<boolean>
 
+function overridePlanId(): PlanId {
+  const rawPlan = process.env.BILLING_OVERRIDE_PLAN?.trim() || 'publisher'
   const planId = parsePlanId(rawPlan)
-  if (!isPaidPlan(planId)) return null
-
-  const targetAccount = process.env.BILLING_OVERRIDE_ACCOUNT_ID?.trim()
-  if (!targetAccount || targetAccount !== accountId) return null
-
-  return planId
+  return isPaidPlan(planId) ? planId : 'publisher'
 }
 
-function applyPlanOverride(
+async function resolvePlanOverride(
+  accountId: string,
+  matchPlanOverride?: BillingOverrideMatcher,
+): Promise<PlanId | null> {
+  const targetAccount = process.env.BILLING_OVERRIDE_ACCOUNT_ID?.trim()
+  if (targetAccount && targetAccount === accountId) {
+    return overridePlanId()
+  }
+
+  if (matchPlanOverride && (await matchPlanOverride(accountId))) {
+    return overridePlanId()
+  }
+
+  return null
+}
+
+async function applyPlanOverride(
   accountId: string,
   status: BillingAccountStatus,
-): BillingAccountStatus {
-  const overridePlan = resolvePlanOverride(accountId)
+  matchPlanOverride?: BillingOverrideMatcher,
+): Promise<BillingAccountStatus> {
+  const overridePlan = await resolvePlanOverride(accountId, matchPlanOverride)
   if (!overridePlan) return status
 
   return {
@@ -104,7 +116,10 @@ function applyPlanOverride(
   }
 }
 
-export function createBillingStore(dataDir: string) {
+export function createBillingStore(
+  dataDir: string,
+  options?: { matchPlanOverride?: BillingOverrideMatcher },
+) {
   const billingDir = path.join(dataDir, 'billing')
 
   async function ensureDir() {
@@ -188,7 +203,7 @@ export function createBillingStore(dataDir: string) {
   return {
     async getStatus(accountId: string): Promise<BillingAccountStatus> {
       const record = await getOrCreateRecord(accountId)
-      return applyPlanOverride(accountId, toStatus(record))
+      return applyPlanOverride(accountId, toStatus(record), options?.matchPlanOverride)
     },
 
     async createCheckoutSession(
@@ -273,7 +288,7 @@ export function createBillingStore(dataDir: string) {
       }
 
       const updated = await readRecord(accountId)
-      return applyPlanOverride(accountId, toStatus(updated ?? record))
+      return applyPlanOverride(accountId, toStatus(updated ?? record), options?.matchPlanOverride)
     },
 
     async createPortalSession(accountId: string): Promise<string> {

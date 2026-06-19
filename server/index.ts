@@ -72,8 +72,29 @@ const storage = createStorage()
 const domains = createDomainRegistry(DATA_DIR)
 const analytics = createAnalyticsStore(DATA_DIR)
 const leads = createLeadsStore(DATA_DIR)
-const billing = createBillingStore(DATA_DIR)
 const users = createUsersStore(DATA_DIR)
+
+const FOUNDER_OVERRIDE_EMAILS = ['stephen@genlux.com']
+
+function planOverrideEmails(): string[] {
+  const fromEnv =
+    process.env.BILLING_OVERRIDE_EMAIL?.split(',')
+      .map((email) => email.trim().toLowerCase())
+      .filter(Boolean) ?? []
+  return [...new Set([...fromEnv, ...FOUNDER_OVERRIDE_EMAILS])]
+}
+
+const billing = createBillingStore(DATA_DIR, {
+  async matchPlanOverride(accountId) {
+    for (const email of planOverrideEmails()) {
+      const user = await users.findByEmail(email)
+      if (user?.billingAccountId === accountId) {
+        return true
+      }
+    }
+    return false
+  },
+})
 
 const app = express()
 app.use(cors())
