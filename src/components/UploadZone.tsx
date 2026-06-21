@@ -101,7 +101,7 @@ export function UploadZone({ onFileSelect, disabled, maxUploadMb }: UploadZonePr
       <UploadMagIcon active={isDragging} />
 
       <h3 className="mb-2 text-[1.375rem] font-semibold tracking-tight text-apple-text">
-        Drop your PDF here
+        Drop or Upload Your PDF Here
       </h3>
       <p className="mb-6 text-[1.0625rem] text-apple-muted">
         or click to browse — brochures, magazines, catalogs
