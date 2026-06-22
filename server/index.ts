@@ -47,7 +47,7 @@ import {
   verifyPassword,
   verifyPasswordResetToken,
 } from './auth.js'
-import { sendMagicLinkEmail, sendPasswordResetEmail, isMagicLinkEnabled } from './email.js'
+import { sendMagicLinkEmail, sendPasswordResetEmail, isAuthEmailEnabled, isMagicLinkEnabled } from './email.js'
 import { createUsersStore, type UserRecord } from './users.js'
 import { createDomainRegistry } from './domains.js'
 import { createAnalyticsStore } from './analytics.js'
@@ -221,7 +221,10 @@ function startUserSession(res: express.Response, user: UserRecord) {
 }
 
 app.get('/api/auth/config', (_req, res) => {
-  res.json({ magicLinkEnabled: isMagicLinkEnabled() })
+  res.json({
+    magicLinkEnabled: isMagicLinkEnabled(),
+    passwordResetEnabled: isAuthEmailEnabled(),
+  })
 })
 
 app.post('/api/auth/signup', async (req, res) => {
@@ -321,6 +324,14 @@ app.post('/api/auth/verify', async (req, res) => {
 
 app.post('/api/auth/forgot-password', async (req, res) => {
   try {
+    if (!isAuthEmailEnabled() && process.env.NODE_ENV === 'production') {
+      res.status(503).json({
+        error:
+          'Password reset email is not configured yet. Contact support@makeamag.com and we will help you regain access.',
+      })
+      return
+    }
+
     const { email } = req.body as { email?: string }
     if (!email?.trim() || !email.includes('@')) {
       res.status(400).json({ error: 'A valid email address is required' })

@@ -7,12 +7,15 @@ const fetchOptions: RequestInit = {
   credentials: 'include',
 }
 
-export async function fetchAuthConfig(): Promise<{ magicLinkEnabled: boolean }> {
+export async function fetchAuthConfig(): Promise<{
+  magicLinkEnabled: boolean
+  passwordResetEnabled: boolean
+}> {
   const response = await fetch(`${API_BASE}/auth/config`, fetchOptions)
   if (!response.ok) {
-    return { magicLinkEnabled: false }
+    return { magicLinkEnabled: false, passwordResetEnabled: false }
   }
-  return response.json() as Promise<{ magicLinkEnabled: boolean }>
+  return response.json() as Promise<{ magicLinkEnabled: boolean; passwordResetEnabled: boolean }>
 }
 
 export async function signUp(email: string, password: string): Promise<AuthSession> {

@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { requestPasswordReset } from '../lib/authApi'
+import { fetchAuthConfig, requestPasswordReset } from '../lib/authApi'
 import { AppNav } from '../components/AppNav'
 import { SiteFooter } from '../components/SiteFooter'
 import { SUPPORT_EMAIL } from '../../shared/site'
@@ -22,9 +22,15 @@ function AuthIcon() {
 export function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
   const [sent, setSent] = useState(false)
+  const [delivered, setDelivered] = useState(false)
   const [devLink, setDevLink] = useState<string | null>(null)
+  const [passwordResetEnabled, setPasswordResetEnabled] = useState(true)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    void fetchAuthConfig().then((config) => setPasswordResetEnabled(config.passwordResetEnabled))
+  }, [])
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
@@ -32,6 +38,7 @@ export function ForgotPasswordPage() {
     setLoading(true)
     try {
       const result = await requestPasswordReset(email.trim())
+      setDelivered(result.delivered)
       setDevLink(result.devLink ?? null)
       setSent(true)
     } catch (err: unknown) {
@@ -59,6 +66,15 @@ export function ForgotPasswordPage() {
                   <p className="mt-3 text-[0.9375rem] leading-relaxed text-apple-muted">
                     Enter your email and we&apos;ll send you a link to reset your password.
                   </p>
+                  {!passwordResetEnabled && (
+                    <p className="mt-3 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                      Email delivery is not configured on this server yet. Contact{' '}
+                      <a href={`mailto:${SUPPORT_EMAIL}`} className="apple-link">
+                        {SUPPORT_EMAIL}
+                      </a>{' '}
+                      for help resetting your password.
+                    </p>
+                  )}
                 </div>
 
                 <form className="mt-6 space-y-4" onSubmit={(event) => void handleSubmit(event)}>
@@ -98,9 +114,18 @@ export function ForgotPasswordPage() {
                   Check your email
                 </h1>
                 <p className="mt-3 text-[0.9375rem] leading-relaxed text-apple-muted">
-                  If an account exists for{' '}
-                  <span className="font-medium text-apple-text">{email}</span>, we sent password
-                  reset instructions.
+                  {delivered ? (
+                    <>
+                      We sent password reset instructions to{' '}
+                      <span className="font-medium text-apple-text">{email}</span>.
+                    </>
+                  ) : (
+                    <>
+                      If an account exists for{' '}
+                      <span className="font-medium text-apple-text">{email}</span>, we could not
+                      deliver email right now.
+                    </>
+                  )}
                 </p>
                 <p className="mt-3 text-sm text-apple-muted">
                   Need help? Contact{' '}

@@ -1,7 +1,11 @@
 const clientUrl = (process.env.CLIENT_URL ?? 'http://localhost:5173').replace(/\/$/, '')
 
-export function isMagicLinkEnabled(): boolean {
+export function isAuthEmailEnabled(): boolean {
   return Boolean(process.env.RESEND_API_KEY?.trim() && process.env.AUTH_EMAIL_FROM?.trim())
+}
+
+export function isMagicLinkEnabled(): boolean {
+  return isAuthEmailEnabled()
 }
 
 function authFromAddress(): string | null {
@@ -91,7 +95,9 @@ export async function sendPasswordResetEmail(email: string, token: string): Prom
       console.log(`[auth] Password reset for ${email}: ${link}`)
       return { delivered: false, devLink: link }
     }
-    return { delivered: false }
+    throw new Error(
+      'Password reset email is not configured yet. Contact support@makeamag.com and we will help you regain access.',
+    )
   }
 
   const response = await fetch('https://api.resend.com/emails', {
