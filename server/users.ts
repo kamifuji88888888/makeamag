@@ -130,6 +130,27 @@ export function createUsersStore(dataDir: string) {
       return valid ? user : null
     },
 
+    async updatePassword(email: string, password: string): Promise<UserRecord | null> {
+      const normalized = normalizeEmail(email)
+      if (!normalized || !normalized.includes('@')) {
+        throw new Error('A valid email address is required')
+      }
+      if (password.length < 8) {
+        throw new Error('Password must be at least 8 characters')
+      }
+
+      const user = await this.findByEmail(normalized)
+      if (!user) return null
+
+      const updated: UserRecord = {
+        ...user,
+        passwordHash: await hashPassword(password),
+        updatedAt: new Date().toISOString(),
+      }
+      await writeUser(updated)
+      return updated
+    },
+
     toPublic(user: UserRecord) {
       return {
         id: user.id,

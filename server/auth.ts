@@ -51,6 +51,22 @@ export function verifyMagicLinkToken(token: string): string | null {
   }
 }
 
+export function createPasswordResetToken(email: string): string {
+  return jwt.sign({ type: 'password-reset', email: email.trim().toLowerCase() }, JWT_SECRET, {
+    expiresIn: MAGIC_LINK_TTL,
+  })
+}
+
+export function verifyPasswordResetToken(token: string): string | null {
+  try {
+    const payload = jwt.verify(token, JWT_SECRET) as { type?: string; email?: string }
+    if (payload.type !== 'password-reset' || !payload.email?.trim()) return null
+    return payload.email.trim().toLowerCase()
+  } catch {
+    return null
+  }
+}
+
 export function createSessionToken(payload: Omit<SessionPayload, 'type'>): string {
   return jwt.sign({ type: 'session', ...payload }, JWT_SECRET, { expiresIn: SESSION_TTL })
 }

@@ -35,6 +35,7 @@ import {
   createLeadCaptureToken,
   createMagicLinkToken,
   createMonetizationToken,
+  createPasswordResetToken,
   createSessionToken,
   extractBearerToken,
   hashPassword,
@@ -44,8 +45,9 @@ import {
   verifyMagicLinkToken,
   verifyMonetizationToken,
   verifyPassword,
+  verifyPasswordResetToken,
 } from './auth.js'
-import { sendMagicLinkEmail, isMagicLinkEnabled } from './email.js'
+import { sendMagicLinkEmail, sendPasswordResetEmail, isMagicLinkEnabled } from './email.js'
 import { createUsersStore, type UserRecord } from './users.js'
 import { createDomainRegistry } from './domains.js'
 import { createAnalyticsStore } from './analytics.js'
@@ -313,6 +315,65 @@ app.post('/api/auth/verify', async (req, res) => {
     res.json({ user: startUserSession(res, user) })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to verify sign-in link'
+    res.status(500).json({ error: message })
+  }
+})
+
+app.post('/api/auth/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body as { email?: string }
+    if (!email?.trim() || !email.includes('@')) {
+      res.status(400).json({ error: 'A valid email address is required' })
+      return
+    }
+
+    const normalized = email.trim().toLowerCase()
+    const user = await users.findByEmail(normalized)
+    if (user?.passwordHash) {
+      const token = createPasswordResetToken(normalized)
+      const delivery = await sendPasswordResetEmail(normalized, token)
+      res.json({
+        ok: true,
+        delivered: delivery.delivered,
+        ...(delivery.devLink ? { devLink: delivery.devLink } : {}),
+      })
+      return
+    }
+
+    res.json({ ok: true, delivered: false })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to send password reset email'
+    res.status(500).json({ error: message })
+  }
+})
+
+app.post('/api/auth/reset-password', async (req, res) => {
+  try {
+    const { token, password } = req.body as { token?: string; password?: string }
+    if (!token?.trim()) {
+      res.status(400).json({ error: 'Reset token is required' })
+      return
+    }
+    if (!password || password.length < 8) {
+      res.status(400).json({ error: 'Password must be at least 8 characters' })
+      return
+    }
+
+    const email = verifyPasswordResetToken(token.trim())
+    if (!email) {
+      res.status(400).json({ error: 'This reset link is invalid or has expired' })
+      return
+    }
+
+    const user = await users.updatePassword(email, password)
+    if (!user) {
+      res.status(400).json({ error: 'This reset link is invalid or has expired' })
+      return
+    }
+
+    res.json({ user: startUserSession(res, user) })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to reset password'
     res.status(500).json({ error: message })
   }
 })

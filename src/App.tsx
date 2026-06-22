@@ -7,7 +7,11 @@ import { AuthPage } from './pages/AuthPage'
 import { EditorPage } from './pages/EditorPage'
 import { EmbedPage } from './pages/EmbedPage'
 import { FlipbookViewScreen } from './pages/FlipbookViewScreen'
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { PricingPage } from './pages/PricingPage'
+import { PrivacyPage } from './pages/PrivacyPage'
+import { ResetPasswordPage } from './pages/ResetPasswordPage'
+import { TermsPage } from './pages/TermsPage'
 import { ViewPage } from './pages/ViewPage'
 import { LoadingProgress } from './components/LoadingProgress'
 
@@ -38,6 +42,10 @@ function App() {
             <Route path="/" element={<HomeRoute />} />
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/auth/verify" element={<AuthPage />} />
+            <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/privacy" element={<PrivacyPage />} />
+            <Route path="/terms" element={<TermsPage />} />
             <Route path="/pricing" element={<PricingPage />} />
             <Route path="/admin" element={<AdminPage />} />
             <Route path="/view/:id" element={<ViewPage />} />

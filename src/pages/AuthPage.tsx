@@ -9,6 +9,7 @@ import {
 } from '../lib/authApi'
 import { useAuth } from '../context/AuthContext'
 import { AppNav } from '../components/AppNav'
+import { SiteFooter } from '../components/SiteFooter'
 
 type Mode = 'signin' | 'signup' | 'magic'
 type Step = 'form' | 'sent' | 'verify' | 'error'
@@ -222,9 +223,16 @@ export function AuthPage() {
 
                   {!isMagic && (
                     <div>
-                      <label htmlFor="password" className="mb-2 block text-sm text-apple-muted">
-                        Password
-                      </label>
+                      <div className="mb-2 flex items-center justify-between">
+                        <label htmlFor="password" className="block text-sm text-apple-muted">
+                          Password
+                        </label>
+                        {mode === 'signin' && (
+                          <Link to="/auth/forgot-password" className="text-sm apple-link">
+                            Forgot password?
+                          </Link>
+                        )}
+                      </div>
                       <input
                         id="password"
                         type="password"
@@ -361,6 +369,8 @@ export function AuthPage() {
           </p>
         </div>
       </main>
+
+      <SiteFooter />
     </div>
   )
 }

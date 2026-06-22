@@ -4,6 +4,7 @@ import type { PlanFeature, PlanId } from '../../shared/plans'
 import { formatByteSize } from '../../shared/plans'
 import { UpgradePrompt } from '../components/UpgradePrompt'
 import { AppNav } from '../components/AppNav'
+import { SiteFooter } from '../components/SiteFooter'
 import { usePlanContext } from '../context/PlanContext'
 import { planLimitMessage, sanitizeBrandingForPlan, sanitizeLeadCaptureForPlan, sanitizeMonetizationForPlan } from '../lib/planStorage'
 import { getBillingAccountId } from '../lib/billingStorage'
@@ -882,6 +883,7 @@ export function EditorPage() {
           </div>
         </div>
       )}
+      <SiteFooter />
     </div>
   )
 }

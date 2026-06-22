@@ -110,6 +110,42 @@ export async function signOut(): Promise<void> {
   })
 }
 
+export async function requestPasswordReset(email: string): Promise<{
+  ok: boolean
+  delivered: boolean
+  devLink?: string
+}> {
+  const response = await fetch(`${API_BASE}/auth/forgot-password`, {
+    ...fetchOptions,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  })
+
+  if (!response.ok) {
+    const body = (await response.json().catch(() => ({}))) as { error?: string }
+    throw new Error(body.error ?? 'Failed to send password reset email')
+  }
+
+  return response.json() as Promise<{ ok: boolean; delivered: boolean; devLink?: string }>
+}
+
+export async function resetPassword(token: string, password: string): Promise<AuthSession> {
+  const response = await fetch(`${API_BASE}/auth/reset-password`, {
+    ...fetchOptions,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token, password }),
+  })
+
+  if (!response.ok) {
+    const body = (await response.json().catch(() => ({}))) as { error?: string }
+    throw new Error(body.error ?? 'Failed to reset password')
+  }
+
+  return response.json() as Promise<AuthSession>
+}
+
 export interface PublishedFlipbookSummary {
   id: string
   fileName: string

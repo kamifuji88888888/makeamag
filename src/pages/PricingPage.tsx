@@ -7,6 +7,7 @@ import {
   type PlanId,
 } from '../../shared/plans'
 import { AppNav } from '../components/AppNav'
+import { SiteFooter } from '../components/SiteFooter'
 import { useAuth } from '../context/AuthContext'
 import { usePlanContext } from '../context/PlanContext'
 import {
@@ -345,6 +346,7 @@ export function PricingPage() {
           </div>
         </section>
       </main>
+      <SiteFooter />
     </div>
   )
 }
