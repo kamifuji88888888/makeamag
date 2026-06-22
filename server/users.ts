@@ -69,6 +69,23 @@ export function createUsersStore(dataDir: string) {
       return readUser(id)
     },
 
+    async findByBillingAccountId(billingAccountId: string): Promise<UserRecord | null> {
+      await ensureDirs()
+      try {
+        const files = await fs.readdir(usersDir)
+        for (const file of files) {
+          if (!file.endsWith('.json')) continue
+          const user = JSON.parse(await fs.readFile(path.join(usersDir, file), 'utf-8')) as UserRecord
+          if (user.billingAccountId === billingAccountId) {
+            return user
+          }
+        }
+      } catch {
+        return null
+      }
+      return null
+    },
+
     async findOrCreate(email: string, billingAccountId?: string): Promise<UserRecord> {
       const normalized = normalizeEmail(email)
       if (!normalized || !normalized.includes('@')) {

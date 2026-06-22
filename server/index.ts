@@ -56,6 +56,11 @@ import { createStorage } from './storage/index.js'
 import { buildAdminMetrics, isAdminAuthorized } from './adminMetrics.js'
 import { createBillingStore, isBillingConfigured } from './billing.js'
 import {
+  founderBillingStatus,
+  isPlanOverrideEmail,
+  planOverrideEmails,
+} from './founderAccess.js'
+import {
   createReaderCheckoutSession,
   createStripeConnectLink,
   isStripeConfigured,
@@ -76,18 +81,13 @@ const analytics = createAnalyticsStore(DATA_DIR)
 const leads = createLeadsStore(DATA_DIR)
 const users = createUsersStore(DATA_DIR)
 
-const FOUNDER_OVERRIDE_EMAILS = ['stephen@genlux.com']
-
-function planOverrideEmails(): string[] {
-  const fromEnv =
-    process.env.BILLING_OVERRIDE_EMAIL?.split(',')
-      .map((email) => email.trim().toLowerCase())
-      .filter(Boolean) ?? []
-  return [...new Set([...fromEnv, ...FOUNDER_OVERRIDE_EMAILS])]
-}
-
 const billing = createBillingStore(DATA_DIR, {
   async matchPlanOverride(accountId) {
+    const accountUser = await users.findByBillingAccountId(accountId)
+    if (accountUser && isPlanOverrideEmail(accountUser.email)) {
+      return true
+    }
+
     for (const email of planOverrideEmails()) {
       const user = await users.findByEmail(email)
       if (user?.billingAccountId === accountId) {
@@ -779,6 +779,12 @@ app.get('/api/billing/status', async (req, res) => {
   }
 
   try {
+    const session = readSessionFromRequest(req)
+    if (session && isPlanOverrideEmail(session.email)) {
+      res.json(founderBillingStatus(accountId))
+      return
+    }
+
     const status = await billing.getStatus(accountId)
     res.json(status)
   } catch (error) {
