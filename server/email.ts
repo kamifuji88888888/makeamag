@@ -1,12 +1,6 @@
+import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses'
+
 const clientUrl = (process.env.CLIENT_URL ?? 'http://localhost:5173').replace(/\/$/, '')
-
-export function isAuthEmailEnabled(): boolean {
-  return Boolean(process.env.RESEND_API_KEY?.trim() && process.env.AUTH_EMAIL_FROM?.trim())
-}
-
-export function isMagicLinkEnabled(): boolean {
-  return isAuthEmailEnabled()
-}
 
 function authFromAddress(): string | null {
   return process.env.AUTH_EMAIL_FROM?.trim() || null
@@ -14,6 +8,113 @@ function authFromAddress(): string | null {
 
 function resendApiKey(): string | null {
   return process.env.RESEND_API_KEY?.trim() || null
+}
+
+function awsRegion(): string {
+  return process.env.SES_REGION?.trim() || process.env.AWS_REGION?.trim() || 'us-east-1'
+}
+
+function hasAwsCredentials(): boolean {
+  return Boolean(process.env.AWS_ACCESS_KEY_ID?.trim() && process.env.AWS_SECRET_ACCESS_KEY?.trim())
+}
+
+export function isSesConfigured(): boolean {
+  return Boolean(authFromAddress() && hasAwsCredentials())
+}
+
+export function isResendConfigured(): boolean {
+  return Boolean(authFromAddress() && resendApiKey())
+}
+
+export function isAuthEmailEnabled(): boolean {
+  return isSesConfigured() || isResendConfigured()
+}
+
+export function authEmailProvider(): 'ses' | 'resend' | null {
+  if (isSesConfigured()) return 'ses'
+  if (isResendConfigured()) return 'resend'
+  return null
+}
+
+export function isMagicLinkEnabled(): boolean {
+  return isAuthEmailEnabled()
+}
+
+let sesClient: SESClient | null = null
+
+function getSesClient(): SESClient {
+  if (!sesClient) {
+    sesClient = new SESClient({
+      region: awsRegion(),
+      credentials: {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID!.trim(),
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!.trim(),
+      },
+    })
+  }
+  return sesClient
+}
+
+interface AuthEmailDelivery {
+  delivered: boolean
+  devLink?: string
+}
+
+async function sendAuthHtmlEmail(to: string, subject: string, html: string): Promise<void> {
+  const from = authFromAddress()
+  if (!from) {
+    throw new Error('AUTH_EMAIL_FROM is not configured.')
+  }
+
+  if (isSesConfigured()) {
+    await getSesClient().send(
+      new SendEmailCommand({
+        Source: from,
+        Destination: { ToAddresses: [to] },
+        Message: {
+          Subject: { Data: subject, Charset: 'UTF-8' },
+          Body: { Html: { Data: html, Charset: 'UTF-8' } },
+        },
+      }),
+    )
+    return
+  }
+
+  if (isResendConfigured()) {
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${resendApiKey()}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from,
+        to,
+        subject,
+        html,
+      }),
+    })
+
+    if (!response.ok) {
+      const body = await response.text().catch(() => '')
+      throw new Error(body || 'Failed to send email via Resend')
+    }
+    return
+  }
+
+  throw new Error(
+    'Email is not configured. Set AUTH_EMAIL_FROM and AWS credentials for Amazon SES.',
+  )
+}
+
+function handleUnconfiguredEmail(link: string, email: string, label: string): AuthEmailDelivery {
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`[auth] ${label} for ${email}: ${link}`)
+    return { delivered: false, devLink: link }
+  }
+  throw new Error(
+    'Email is not configured yet. Contact support@makeamag.com and we will help you regain access.',
+  )
 }
 
 function buildMagicLinkEmailHtml(link: string): string {
@@ -35,36 +136,12 @@ export interface MagicLinkDelivery {
 
 export async function sendMagicLinkEmail(email: string, token: string): Promise<MagicLinkDelivery> {
   const link = `${clientUrl}/auth/verify?token=${encodeURIComponent(token)}`
-  const apiKey = resendApiKey()
-  const from = authFromAddress()
 
-  if (!apiKey || !from) {
-    if (process.env.NODE_ENV !== 'production') {
-      console.log(`[auth] Magic link for ${email}: ${link}`)
-      return { delivered: false, devLink: link }
-    }
-    throw new Error('Email is not configured. Set RESEND_API_KEY and AUTH_EMAIL_FROM.')
+  if (!isAuthEmailEnabled()) {
+    return handleUnconfiguredEmail(link, email, 'Magic link')
   }
 
-  const response = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      from,
-      to: email,
-      subject: 'Sign in to MakeAMag',
-      html: buildMagicLinkEmailHtml(link),
-    }),
-  })
-
-  if (!response.ok) {
-    const body = await response.text().catch(() => '')
-    throw new Error(body || 'Failed to send sign-in email')
-  }
-
+  await sendAuthHtmlEmail(email, 'Sign in to MakeAMag', buildMagicLinkEmailHtml(link))
   return { delivered: true }
 }
 
@@ -87,37 +164,11 @@ export interface PasswordResetDelivery {
 
 export async function sendPasswordResetEmail(email: string, token: string): Promise<PasswordResetDelivery> {
   const link = `${clientUrl}/auth/reset-password?token=${encodeURIComponent(token)}`
-  const apiKey = resendApiKey()
-  const from = authFromAddress()
 
-  if (!apiKey || !from) {
-    if (process.env.NODE_ENV !== 'production') {
-      console.log(`[auth] Password reset for ${email}: ${link}`)
-      return { delivered: false, devLink: link }
-    }
-    throw new Error(
-      'Password reset email is not configured yet. Contact support@makeamag.com and we will help you regain access.',
-    )
+  if (!isAuthEmailEnabled()) {
+    return handleUnconfiguredEmail(link, email, 'Password reset')
   }
 
-  const response = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      from,
-      to: email,
-      subject: 'Reset your MakeAMag password',
-      html: buildPasswordResetEmailHtml(link),
-    }),
-  })
-
-  if (!response.ok) {
-    const body = await response.text().catch(() => '')
-    throw new Error(body || 'Failed to send password reset email')
-  }
-
+  await sendAuthHtmlEmail(email, 'Reset your MakeAMag password', buildPasswordResetEmailHtml(link))
   return { delivered: true }
 }

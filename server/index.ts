@@ -47,7 +47,7 @@ import {
   verifyPassword,
   verifyPasswordResetToken,
 } from './auth.js'
-import { sendMagicLinkEmail, sendPasswordResetEmail, isAuthEmailEnabled, isMagicLinkEnabled } from './email.js'
+import { sendMagicLinkEmail, sendPasswordResetEmail, isAuthEmailEnabled, isMagicLinkEnabled, authEmailProvider } from './email.js'
 import { createUsersStore, type UserRecord } from './users.js'
 import { createDomainRegistry } from './domains.js'
 import { createAnalyticsStore } from './analytics.js'
@@ -224,6 +224,7 @@ app.get('/api/auth/config', (_req, res) => {
   res.json({
     magicLinkEnabled: isMagicLinkEnabled(),
     passwordResetEnabled: isAuthEmailEnabled(),
+    emailProvider: authEmailProvider(),
   })
 })
 
@@ -327,7 +328,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     if (!isAuthEmailEnabled() && process.env.NODE_ENV === 'production') {
       res.status(503).json({
         error:
-          'Password reset email is not configured yet. Contact support@makeamag.com and we will help you regain access.',
+          'Password reset email is not configured yet. Set AUTH_EMAIL_FROM and AWS credentials for Amazon SES, then redeploy.',
       })
       return
     }

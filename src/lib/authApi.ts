@@ -10,12 +10,17 @@ const fetchOptions: RequestInit = {
 export async function fetchAuthConfig(): Promise<{
   magicLinkEnabled: boolean
   passwordResetEnabled: boolean
+  emailProvider?: 'ses' | 'resend' | null
 }> {
   const response = await fetch(`${API_BASE}/auth/config`, fetchOptions)
   if (!response.ok) {
     return { magicLinkEnabled: false, passwordResetEnabled: false }
   }
-  return response.json() as Promise<{ magicLinkEnabled: boolean; passwordResetEnabled: boolean }>
+  return response.json() as Promise<{
+    magicLinkEnabled: boolean
+    passwordResetEnabled: boolean
+    emailProvider?: 'ses' | 'resend' | null
+  }>
 }
 
 export async function signUp(email: string, password: string): Promise<AuthSession> {
