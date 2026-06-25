@@ -52,6 +52,7 @@ interface FlipbookViewerProps {
   monetization?: MonetizationConfig
   leadCapture?: LeadCaptureConfig
   pageTexts?: string[]
+  onPageTextsChange?: (pageTexts: string[]) => void
   hasSubscriberAccess?: boolean
   monetizationUnlocked?: boolean
   leadCaptureUnlocked?: boolean
@@ -196,6 +197,7 @@ export function FlipbookViewer({
   monetization = DEFAULT_MONETIZATION,
   leadCapture = DEFAULT_LEAD_CAPTURE,
   pageTexts = [],
+  onPageTextsChange,
   hasSubscriberAccess = false,
   monetizationUnlocked = true,
   leadCaptureUnlocked = true,
@@ -274,7 +276,21 @@ export function FlipbookViewer({
   }
   const gateActive = leadCaptureActive || paywallActive
   const visibleImages = gateActive ? images.slice(0, previewLimit) : images
+  const searchablePageTexts = gateActive ? pageTexts.slice(0, previewLimit) : pageTexts
   const totalPages = visibleImages.length
+  const [sessionPageTexts, setSessionPageTexts] = useState<string[]>(searchablePageTexts)
+
+  useEffect(() => {
+    setSessionPageTexts(gateActive ? pageTexts.slice(0, previewLimit) : pageTexts)
+  }, [gateActive, pageTexts, previewLimit])
+
+  const handlePageTextsChange = useCallback(
+    (texts: string[]) => {
+      setSessionPageTexts(texts)
+      onPageTextsChange?.(texts)
+    },
+    [onPageTextsChange],
+  )
   const isCoverOrBack =
     spreadView && totalPages > 0 && (currentPage === 1 || currentPage === totalPages)
   const usePortraitLayout = !spreadView || isCoverOrBack
@@ -732,7 +748,7 @@ export function FlipbookViewer({
             onOpenContents={
               hasContents ? () => setShowTocSidebar(true) : undefined
             }
-            onOpenSearch={pageTexts.length > 0 ? () => setShowSearch(true) : undefined}
+            onOpenSearch={visibleImages.length > 0 ? () => setShowSearch(true) : undefined}
             onShare={mode === 'editor' ? handleShareClick : undefined}
             onOpenSocialShare={
               mode === 'editor' ? () => setShowSocialShareDialog(true) : undefined
@@ -853,11 +869,13 @@ export function FlipbookViewer({
         />
       )}
 
-      {showSearch && pageTexts.length > 0 && (
+      {showSearch && visibleImages.length > 0 && (
         <FlipbookSearchPanel
-          pageTexts={pageTexts}
+          pageTexts={sessionPageTexts}
+          pageImages={visibleImages}
           currentPage={currentPage}
           onGoToPage={goToPage}
+          onPageTextsChange={handlePageTextsChange}
           onClose={() => setShowSearch(false)}
         />
       )}

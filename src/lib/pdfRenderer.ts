@@ -1,5 +1,6 @@
 import type * as PdfJs from 'pdfjs-dist/legacy/build/pdf.mjs'
 import type { TocEntry } from '../../shared/flipbook'
+import { extractPageText } from './pdfTextExtraction'
 
 type PdfJsModule = typeof PdfJs
 
@@ -123,7 +124,11 @@ async function renderPages(
       const page = await pdf.getPage(pageNum)
       const pageViewport = page.getViewport({ scale })
       images.push(await renderPageToDataUrl(page, pageViewport))
-      pageTexts.push('')
+      try {
+        pageTexts.push(await extractPageText(page))
+      } catch {
+        pageTexts.push('')
+      }
       onProgress?.(pageNum / numPages)
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error)

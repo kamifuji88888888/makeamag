@@ -418,6 +418,13 @@ export function EditorPage() {
     [updateReady],
   )
 
+  const handlePageTextsChange = useCallback(
+    (pageTexts: string[]) => {
+      updateReady((prev) => ({ ...prev, pageTexts }))
+    },
+    [updateReady],
+  )
+
   const handleTableOfContentsChange = useCallback(
     (tableOfContents: TocEntry[]) => {
       updateReady((prev) => ({ ...prev, tableOfContents }))
@@ -820,6 +827,7 @@ export function EditorPage() {
               monetization={state.monetization}
               leadCapture={state.leadCapture}
               pageTexts={state.pageTexts}
+              onPageTextsChange={handlePageTextsChange}
               hasSubscriberAccess={state.hasSubscriberAccess}
               subscriberAccessCode={state.subscriberAccessCode}
               shareUrl={state.shareUrl}
