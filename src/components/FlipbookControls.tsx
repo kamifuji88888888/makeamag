@@ -149,7 +149,7 @@ export function FlipbookControls({
           onClick={onTogglePositionMode}
           className={positionMode ? 'apple-btn-primary' : 'apple-btn-ghost'}
         >
-          {positionMode ? 'Done' : 'Position'}
+          {positionMode ? 'Done' : 'Move & resize'}
         </button>
       )}
 

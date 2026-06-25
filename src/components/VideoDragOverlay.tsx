@@ -125,13 +125,18 @@ export function VideoDragOverlay({
               {children}
             </div>
             <div className="pointer-events-none absolute inset-x-0 top-0 bg-apple-blue/90 px-1 py-0.5 text-center text-[9px] font-medium text-white">
-              Drag to move
+              {selected ? 'Drag to move · corner to resize' : 'Drag to move'}
             </div>
           </div>
           <div
-            className="absolute bottom-0 right-0 z-20 h-4 w-4 cursor-se-resize rounded-tl bg-apple-blue shadow"
+            className="absolute bottom-0 right-0 z-20 flex h-5 w-5 cursor-se-resize items-end justify-end rounded-tl bg-apple-blue p-0.5 shadow"
+            aria-label="Resize video"
             onPointerDown={handlePointerDown('resize')}
-          />
+          >
+            <svg className="h-3 w-3 text-white" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
+              <path d="M12 12H8V10h2V8h2v4ZM4 12H0V8h2v2h2v2ZM12 4V0H8v2H6v2h2v2h4Z" />
+            </svg>
+          </div>
         </>
       ) : (
         children

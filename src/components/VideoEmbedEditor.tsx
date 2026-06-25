@@ -8,6 +8,7 @@ interface VideoEmbedEditorProps {
   videoEmbeds: VideoEmbed[]
   onAdd: (embed: VideoEmbed) => void
   onRemove: (id: string) => void
+  onAdjust?: (embed: VideoEmbed) => void
   onClose: () => void
 }
 
@@ -17,6 +18,7 @@ export function VideoEmbedEditor({
   videoEmbeds,
   onAdd,
   onRemove,
+  onAdjust,
   onClose,
 }: VideoEmbedEditorProps) {
   const [pageIndex, setPageIndex] = useState(currentPage - 1)
@@ -33,6 +35,7 @@ export function VideoEmbedEditor({
     setError('')
     onAdd(embed)
     setUrl('')
+    onAdjust?.(embed)
   }
 
   return (
@@ -84,6 +87,9 @@ export function VideoEmbedEditor({
               <option value="large">Large</option>
               <option value="full">Full page</option>
             </select>
+            <p className="mt-2 text-xs text-apple-muted">
+              After adding, drag the video to move it and pull the corner handle to resize.
+            </p>
           </div>
 
           {error && <p className="text-sm text-red-500">{error}</p>}
@@ -101,9 +107,16 @@ export function VideoEmbedEditor({
                     <span className="truncate text-apple-text">
                       Page {embed.pageIndex + 1} · {embed.provider}
                     </span>
-                    <button type="button" onClick={() => onRemove(embed.id)} className="ml-2 shrink-0 text-apple-blue hover:underline">
-                      Remove
-                    </button>
+                    <div className="ml-2 flex shrink-0 items-center gap-2">
+                      {onAdjust && (
+                        <button type="button" onClick={() => onAdjust(embed)} className="text-apple-blue hover:underline">
+                          Resize
+                        </button>
+                      )}
+                      <button type="button" onClick={() => onRemove(embed.id)} className="text-red-500 hover:underline">
+                        Remove
+                      </button>
+                    </div>
                   </li>
                 ))}
               </ul>

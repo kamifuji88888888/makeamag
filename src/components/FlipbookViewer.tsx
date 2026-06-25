@@ -524,6 +524,17 @@ export function FlipbookViewer({
     })
   }, [resetZoom])
 
+  const enterVideoAdjustMode = useCallback(
+    (embed: VideoEmbed) => {
+      setShowVideoEditor(false)
+      setInlinePositionMode(true)
+      setSelectedEmbedId(embed.id)
+      resetZoom()
+      goToPage(embed.pageIndex)
+    },
+    [goToPage, resetZoom],
+  )
+
   const pages = useMemo(
     () =>
       visibleImages.map((src, index) => (
@@ -593,7 +604,7 @@ export function FlipbookViewer({
 
         {inlinePositionMode && mode === 'editor' && (
           <div className="flex w-full max-w-xl items-center justify-between rounded-full border border-apple-blue/20 bg-apple-blue/8 px-5 py-2.5 text-sm text-apple-blue">
-            <span>Drag videos and links on the page</span>
+            <span>Drag to move · pull the corner handle to resize</span>
             <button
               type="button"
               onClick={() => {
@@ -754,6 +765,7 @@ export function FlipbookViewer({
           videoEmbeds={videoEmbeds}
           onAdd={handleAddVideo}
           onRemove={handleRemoveVideo}
+          onAdjust={enterVideoAdjustMode}
           onClose={() => setShowVideoEditor(false)}
         />
       )}
