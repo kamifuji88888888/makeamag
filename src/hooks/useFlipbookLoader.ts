@@ -5,6 +5,7 @@ import type {
   LeadCaptureConfig,
   LinkHotspot,
   MonetizationConfig,
+  PopUpPanel,
   PublicationInfo,
   TocEntry,
   VideoEmbed,
@@ -33,6 +34,7 @@ export type FlipbookLoadState =
       aspectRatio: number
       videoEmbeds: VideoEmbed[]
       linkHotspots: LinkHotspot[]
+      popUpPanels: PopUpPanel[]
       publication: PublicationInfo
       tableOfContents: TocEntry[]
       spreadView: boolean
@@ -72,6 +74,7 @@ export function useFlipbookLoader(id: string | undefined) {
         aspectRatio: result.aspectRatio,
         videoEmbeds: meta.videoEmbeds,
         linkHotspots: meta.linkHotspots ?? [],
+        popUpPanels: meta.popUpPanels ?? [],
         publication: normalizePublication(meta.publication),
         tableOfContents: meta.tableOfContents ?? [],
         spreadView: meta.spreadView ?? result.aspectRatio > 1.15,

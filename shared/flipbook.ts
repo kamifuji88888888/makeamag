@@ -36,6 +36,21 @@ export interface LinkHotspot {
   height: number
 }
 
+export type PopUpPanelKind = 'footnote' | 'spec' | 'citation' | 'note'
+
+export interface PopUpPanel {
+  id: string
+  pageIndex: number
+  kind: PopUpPanelKind
+  triggerLabel: string
+  title: string
+  body: string
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
 export interface BrandingConfig {
   logoUrl: string
   accentColor: string
@@ -83,6 +98,7 @@ export interface FlipbookPublicMeta {
   publication: PublicationInfo
   tableOfContents: TocEntry[]
   linkHotspots: LinkHotspot[]
+  popUpPanels: PopUpPanel[]
   spreadView: boolean
   branding: BrandingConfig
   monetization: MonetizationConfig
@@ -187,6 +203,68 @@ export const LINK_HOTSPOT_PRESET = {
   height: 8,
 }
 
+export const POP_UP_PANEL_PRESET = {
+  x: 42,
+  y: 78,
+  width: 16,
+  height: 7,
+}
+
+export const POP_UP_PANEL_KIND_LABELS: Record<PopUpPanelKind, string> = {
+  footnote: 'Footnote',
+  spec: 'Specifications',
+  citation: 'Citation',
+  note: 'Note',
+}
+
+export const POP_UP_PANEL_KIND_DEFAULTS: Record<
+  PopUpPanelKind,
+  Pick<PopUpPanel, 'triggerLabel' | 'title'>
+> = {
+  footnote: { triggerLabel: '†', title: 'Footnote' },
+  spec: { triggerLabel: 'Specs', title: 'Specifications' },
+  citation: { triggerLabel: '[1]', title: 'Source' },
+  note: { triggerLabel: '+', title: 'Note' },
+}
+
+export function normalizePopUpPanel(panel: Partial<PopUpPanel>): PopUpPanel | null {
+  const kind =
+    panel.kind === 'spec' || panel.kind === 'citation' || panel.kind === 'note'
+      ? panel.kind
+      : 'footnote'
+  const defaults = POP_UP_PANEL_KIND_DEFAULTS[kind]
+  const triggerLabel = panel.triggerLabel?.trim() || defaults.triggerLabel
+  const title = panel.title?.trim() || defaults.title
+  const body = panel.body?.trim() ?? ''
+  if (!body) return null
+
+  const pageIndex = Math.max(0, Math.floor(panel.pageIndex ?? 0))
+  const x = typeof panel.x === 'number' ? panel.x : POP_UP_PANEL_PRESET.x
+  const y = typeof panel.y === 'number' ? panel.y : POP_UP_PANEL_PRESET.y
+  const width = typeof panel.width === 'number' ? panel.width : POP_UP_PANEL_PRESET.width
+  const height = typeof panel.height === 'number' ? panel.height : POP_UP_PANEL_PRESET.height
+
+  return {
+    id: panel.id?.trim() || crypto.randomUUID(),
+    pageIndex,
+    kind,
+    triggerLabel,
+    title,
+    body,
+    x,
+    y,
+    width,
+    height,
+  }
+}
+
+export function normalizePopUpPanels(panels?: PopUpPanel[]): PopUpPanel[] {
+  if (!Array.isArray(panels)) return []
+  return panels
+    .map((panel) => normalizePopUpPanel(panel))
+    .filter((panel): panel is PopUpPanel => panel !== null)
+}
+
 export const VIDEO_SIZE_PRESETS: Record<
   VideoSizePreset,
   Pick<VideoEmbed, 'x' | 'y' | 'width' | 'height'>
@@ -282,6 +360,7 @@ export function toPublicMeta(meta: FlipbookStoredMeta): FlipbookPublicMeta {
     publication: normalizePublication(meta.publication),
     tableOfContents: meta.tableOfContents ?? [],
     linkHotspots: meta.linkHotspots ?? [],
+    popUpPanels: normalizePopUpPanels(meta.popUpPanels),
     spreadView: meta.spreadView ?? false,
     branding: normalizeBranding(meta.branding),
     monetization: publicMonetizationFromStored(meta.monetization, meta.stripeAccountId),

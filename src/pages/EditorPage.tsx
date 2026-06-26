@@ -13,6 +13,7 @@ import type {
   LeadCaptureConfig,
   LinkHotspot,
   MonetizationConfig,
+  PopUpPanel,
   PublicationInfo,
   TocEntry,
   VideoEmbed,
@@ -69,6 +70,7 @@ type ReadyState = {
   flipbookId: string | null
   videoEmbeds: VideoEmbed[]
   linkHotspots: LinkHotspot[]
+  popUpPanels: PopUpPanel[]
   publication: PublicationInfo
   tableOfContents: TocEntry[]
   spreadView: boolean
@@ -105,6 +107,7 @@ function publisherPayload(state: ReadyState, planId: PlanId) {
     publication: state.publication,
     tableOfContents: state.tableOfContents,
     linkHotspots: state.linkHotspots,
+    popUpPanels: state.popUpPanels,
     spreadView: state.spreadView,
     branding: sanitizeBrandingForPlan(state.branding, planId),
     monetization: sanitizeMonetizationForPlan(state.monetization, planId),
@@ -120,6 +123,7 @@ function libraryPublisherPatch(state: ReadyState) {
     publication: state.publication,
     tableOfContents: state.tableOfContents,
     linkHotspots: state.linkHotspots,
+    popUpPanels: state.popUpPanels,
     spreadView: state.spreadView,
     branding: state.branding,
     monetization: state.monetization,
@@ -263,6 +267,7 @@ export function EditorPage() {
           flipbookId: null,
           videoEmbeds: [],
           linkHotspots: [],
+          popUpPanels: [],
           publication,
           tableOfContents: outline,
           spreadView,
@@ -317,6 +322,7 @@ export function EditorPage() {
             flipbookId: null,
             videoEmbeds: [],
             linkHotspots: entry.linkHotspots ?? [],
+            popUpPanels: entry.popUpPanels ?? [],
             publication,
             tableOfContents: entry.tableOfContents ?? [],
             spreadView: entry.spreadView ?? defaultSpreadView(result.aspectRatio),
@@ -346,6 +352,7 @@ export function EditorPage() {
             flipbookId: meta.id,
             videoEmbeds: meta.videoEmbeds,
             linkHotspots: meta.linkHotspots ?? [],
+            popUpPanels: meta.popUpPanels ?? [],
             publication: normalizePublication(meta.publication),
             tableOfContents: meta.tableOfContents ?? [],
             spreadView: meta.spreadView ?? defaultSpreadView(result.aspectRatio),
@@ -407,6 +414,13 @@ export function EditorPage() {
   const handleLinkHotspotsChange = useCallback(
     (linkHotspots: LinkHotspot[]) => {
       updateReady((prev) => ({ ...prev, linkHotspots }))
+    },
+    [updateReady],
+  )
+
+  const handlePopUpPanelsChange = useCallback(
+    (popUpPanels: PopUpPanel[]) => {
+      updateReady((prev) => ({ ...prev, popUpPanels }))
     },
     [updateReady],
   )
@@ -820,6 +834,7 @@ export function EditorPage() {
               flipbookId={state.flipbookId}
               videoEmbeds={state.videoEmbeds}
               linkHotspots={state.linkHotspots}
+              popUpPanels={state.popUpPanels}
               publication={state.publication}
               tableOfContents={state.tableOfContents}
               spreadView={state.spreadView}
@@ -837,6 +852,7 @@ export function EditorPage() {
               onShare={handleShare}
               onVideoEmbedsChange={handleVideoEmbedsChange}
               onLinkHotspotsChange={handleLinkHotspotsChange}
+              onPopUpPanelsChange={handlePopUpPanelsChange}
               onPublicationChange={handlePublicationChange}
               onTableOfContentsChange={handleTableOfContentsChange}
               onSpreadViewChange={handleSpreadViewChange}

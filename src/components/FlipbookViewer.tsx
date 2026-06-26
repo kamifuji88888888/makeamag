@@ -12,6 +12,7 @@ import type {
   LeadCaptureConfig,
   LinkHotspot,
   MonetizationConfig,
+  PopUpPanel,
   PublicationInfo,
   TocEntry,
   VideoEmbed,
@@ -26,6 +27,7 @@ import { usePageTurnSound } from '../hooks/usePageTurnSound'
 import { FlipbookControls } from './FlipbookControls'
 import { FlipbookPage } from './FlipbookPage'
 import { FlipbookZoomControls } from './FlipbookZoomControls'
+import { PopUpPanelModal } from './PopUpPanelModal'
 import { PublicationHeader } from './PublicationHeader'
 import { PublisherPanel } from './PublisherPanel'
 import { ReaderPaywall } from './ReaderPaywall'
@@ -45,6 +47,7 @@ interface FlipbookViewerProps {
   flipbookId?: string | null
   videoEmbeds?: VideoEmbed[]
   linkHotspots?: LinkHotspot[]
+  popUpPanels?: PopUpPanel[]
   publication?: PublicationInfo
   tableOfContents?: TocEntry[]
   spreadView?: boolean
@@ -66,6 +69,7 @@ interface FlipbookViewerProps {
   onShare?: (password?: string) => void
   onVideoEmbedsChange?: (embeds: VideoEmbed[]) => void
   onLinkHotspotsChange?: (hotspots: LinkHotspot[]) => void
+  onPopUpPanelsChange?: (panels: PopUpPanel[]) => void
   onPublicationChange?: (publication: PublicationInfo) => void
   onTableOfContentsChange?: (entries: TocEntry[]) => void
   onSpreadViewChange?: (spreadView: boolean) => void
@@ -190,6 +194,7 @@ export function FlipbookViewer({
   flipbookId = null,
   videoEmbeds = [],
   linkHotspots = [],
+  popUpPanels = [],
   publication = DEFAULT_PUBLICATION,
   tableOfContents = [],
   spreadView = false,
@@ -211,6 +216,7 @@ export function FlipbookViewer({
   onShare,
   onVideoEmbedsChange,
   onLinkHotspotsChange,
+  onPopUpPanelsChange,
   onPublicationChange,
   onTableOfContentsChange,
   onSpreadViewChange,
@@ -251,6 +257,8 @@ export function FlipbookViewer({
   const [inlinePositionMode, setInlinePositionMode] = useState(false)
   const [selectedEmbedId, setSelectedEmbedId] = useState<string | null>(null)
   const [selectedLinkId, setSelectedLinkId] = useState<string | null>(null)
+  const [selectedPanelId, setSelectedPanelId] = useState<string | null>(null)
+  const [openPopUpPanel, setOpenPopUpPanel] = useState<PopUpPanel | null>(null)
   const [showShareDialog, setShowShareDialog] = useState(false)
   const [showSocialShareDialog, setShowSocialShareDialog] = useState(false)
   const [pendingPassword, setPendingPassword] = useState<string | undefined>()
@@ -450,8 +458,12 @@ export function FlipbookViewer({
         showLeadCapture ||
         showPaywall ||
         showPublisherPanel ||
-        showTocSidebar
+        showTocSidebar ||
+        openPopUpPanel
       ) {
+        if (e.key === 'Escape' && openPopUpPanel) {
+          setOpenPopUpPanel(null)
+        }
         return
       }
       if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
@@ -464,6 +476,7 @@ export function FlipbookViewer({
         setInlinePositionMode(false)
         setSelectedEmbedId(null)
         setSelectedLinkId(null)
+        setSelectedPanelId(null)
       }
     }
 
@@ -473,6 +486,7 @@ export function FlipbookViewer({
     flipNext,
     flipPrev,
     inlinePositionMode,
+    openPopUpPanel,
     showPositionPreview,
     showVideoEditor,
     showShareDialog,
@@ -516,6 +530,26 @@ export function FlipbookViewer({
     [onLinkHotspotsChange, linkHotspots],
   )
 
+  const handleUpdatePanel = useCallback(
+    (updated: PopUpPanel) => {
+      onPopUpPanelsChange?.(
+        popUpPanels.map((panel) => (panel.id === updated.id ? updated : panel)),
+      )
+    },
+    [onPopUpPanelsChange, popUpPanels],
+  )
+
+  const enterPanelAdjustMode = useCallback(
+    (panel: PopUpPanel) => {
+      setShowPublisherPanel(false)
+      setInlinePositionMode(true)
+      setSelectedPanelId(panel.id)
+      resetZoom()
+      goToPage(panel.pageIndex)
+    },
+    [goToPage, resetZoom],
+  )
+
   const handleShareClick = useCallback(() => {
     onShare?.(pendingPassword)
   }, [onShare, pendingPassword])
@@ -533,6 +567,7 @@ export function FlipbookViewer({
       if (active) {
         setSelectedEmbedId(null)
         setSelectedLinkId(null)
+        setSelectedPanelId(null)
       } else {
         resetZoom()
       }
@@ -562,16 +597,22 @@ export function FlipbookViewer({
           spreadSpine={spreadSpineForPage(index, totalPages, spreadView)}
           videoEmbeds={videoEmbeds}
           linkHotspots={linkHotspots}
+          popUpPanels={popUpPanels}
           interactiveVideos={!inlinePositionMode}
           editableVideos={inlinePositionMode}
           editableLinks={inlinePositionMode}
+          editablePanels={inlinePositionMode}
           selectedEmbedId={selectedEmbedId}
           selectedLinkId={selectedLinkId}
+          selectedPanelId={selectedPanelId}
           onSelectEmbed={setSelectedEmbedId}
           onSelectLink={setSelectedLinkId}
+          onSelectPanel={setSelectedPanelId}
           onUpdateEmbed={handleUpdateEmbed}
           onUpdateLink={handleUpdateLink}
+          onUpdatePanel={handleUpdatePanel}
           onLinkClick={trackLinkClick}
+          onPanelOpen={setOpenPopUpPanel}
           onVideoPlay={trackVideoPlay}
         />
       )),
@@ -581,11 +622,14 @@ export function FlipbookViewer({
       spreadView,
       videoEmbeds,
       linkHotspots,
+      popUpPanels,
       inlinePositionMode,
       selectedEmbedId,
       selectedLinkId,
+      selectedPanelId,
       handleUpdateEmbed,
       handleUpdateLink,
+      handleUpdatePanel,
       trackLinkClick,
       trackVideoPlay,
     ],
@@ -692,6 +736,7 @@ export function FlipbookViewer({
             {gateActive && ' · Preview mode'}
             {videoEmbeds.length > 0 && !inlinePositionMode && ' · Tap videos to play'}
             {linkHotspots.length > 0 && !inlinePositionMode && ' · Tap links to open'}
+            {popUpPanels.length > 0 && !inlinePositionMode && ' · Tap + buttons for footnotes & specs'}
           </p>
         )}
 
@@ -786,13 +831,14 @@ export function FlipbookViewer({
         />
       )}
 
-      {showPublisherPanel && mode === 'editor' && onPublicationChange && onTableOfContentsChange && onLinkHotspotsChange && onSpreadViewChange && onBrandingChange && (
+      {showPublisherPanel && mode === 'editor' && onPublicationChange && onTableOfContentsChange && onLinkHotspotsChange && onPopUpPanelsChange && onSpreadViewChange && onBrandingChange && (
         <PublisherPanel
           fileName={fileName}
           totalPages={images.length}
           publication={publication}
           tableOfContents={tableOfContents}
           linkHotspots={linkHotspots}
+          popUpPanels={popUpPanels}
           spreadView={spreadView}
           monetization={monetization}
           leadCapture={normalizedLeadCapture}
@@ -801,6 +847,8 @@ export function FlipbookViewer({
           onPublicationChange={onPublicationChange}
           onTableOfContentsChange={onTableOfContentsChange}
           onLinkHotspotsChange={onLinkHotspotsChange}
+          onPopUpPanelsChange={onPopUpPanelsChange}
+          onPanelPosition={enterPanelAdjustMode}
           onSpreadViewChange={onSpreadViewChange}
           onMonetizationChange={onMonetizationChange}
           onLeadCaptureChange={onLeadCaptureChange}
@@ -867,6 +915,10 @@ export function FlipbookViewer({
           pageImage={visibleImages[currentPage - 1] ?? visibleImages[0]}
           onClose={() => setShowSocialShareDialog(false)}
         />
+      )}
+
+      {openPopUpPanel && (
+        <PopUpPanelModal panel={openPopUpPanel} onClose={() => setOpenPopUpPanel(null)} />
       )}
 
       {showSearch && visibleImages.length > 0 && (

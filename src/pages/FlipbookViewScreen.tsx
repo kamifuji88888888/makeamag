@@ -96,6 +96,7 @@ export function FlipbookViewScreen({ id, isCustomDomain = false }: FlipbookViewS
         flipbookId={id ?? null}
         videoEmbeds={state.videoEmbeds}
         linkHotspots={state.linkHotspots}
+        popUpPanels={state.popUpPanels}
         publication={state.publication}
         tableOfContents={state.tableOfContents}
         spreadView={state.spreadView}

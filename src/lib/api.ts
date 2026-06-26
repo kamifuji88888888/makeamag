@@ -7,6 +7,7 @@ import type {
   LeadCaptureConfig,
   LinkHotspot,
   MonetizationConfig,
+  PopUpPanel,
   PublicationInfo,
   TocEntry,
   VideoEmbed,
@@ -17,6 +18,7 @@ export interface PublisherUpdate {
   publication?: PublicationInfo
   tableOfContents?: TocEntry[]
   linkHotspots?: LinkHotspot[]
+  popUpPanels?: PopUpPanel[]
   spreadView?: boolean
   branding?: BrandingConfig
   monetization?: MonetizationConfig
@@ -107,6 +109,7 @@ export async function publishFlipbook(
     publication?: PublicationInfo
     tableOfContents?: TocEntry[]
     linkHotspots?: LinkHotspot[]
+    popUpPanels?: PopUpPanel[]
     spreadView?: boolean
     branding?: BrandingConfig
     monetization?: MonetizationConfig
@@ -127,6 +130,9 @@ export async function publishFlipbook(
   }
   if (options?.linkHotspots) {
     formData.append('linkHotspots', JSON.stringify(options.linkHotspots))
+  }
+  if (options?.popUpPanels) {
+    formData.append('popUpPanels', JSON.stringify(options.popUpPanels))
   }
   if (options?.spreadView) {
     formData.append('spreadView', 'true')

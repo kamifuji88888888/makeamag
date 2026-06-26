@@ -3,6 +3,7 @@ import type {
   LeadCaptureConfig,
   LinkHotspot,
   MonetizationConfig,
+  PopUpPanel,
   PublicationInfo,
   TocEntry,
 } from '../../shared/flipbook'
@@ -68,6 +69,7 @@ export interface LibraryEntry {
   publication?: PublicationInfo
   tableOfContents?: TocEntry[]
   linkHotspots?: LinkHotspot[]
+  popUpPanels?: PopUpPanel[]
   spreadView?: boolean
   branding?: BrandingConfig
   monetization?: MonetizationConfig

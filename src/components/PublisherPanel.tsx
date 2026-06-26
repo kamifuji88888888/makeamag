@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { AnalyticsSummary } from '../../shared/analytics'
-import type { BrandingConfig, CapturedLead, LeadCaptureConfig, LinkHotspot, MonetizationConfig, PublicationInfo, TocEntry } from '../../shared/flipbook'
+import type { BrandingConfig, CapturedLead, LeadCaptureConfig, LinkHotspot, MonetizationConfig, PopUpPanel, PopUpPanelKind, PublicationInfo, TocEntry } from '../../shared/flipbook'
+import { POP_UP_PANEL_KIND_DEFAULTS, POP_UP_PANEL_KIND_LABELS } from '../../shared/flipbook'
 import { fetchCapturedLeads, fetchFlipbookAnalytics } from '../lib/api'
 import { getDnsTarget, resolveLogoUrl } from '../lib/branding'
 import { createLinkHotspot } from '../lib/linkHotspotUtils'
+import { createPopUpPanel } from '../lib/popUpPanelUtils'
 import { AnalyticsDashboard } from './AnalyticsDashboard'
 
-type Tab = 'details' | 'contents' | 'links' | 'branding' | 'monetize' | 'leads' | 'analytics'
+type Tab = 'details' | 'contents' | 'links' | 'panels' | 'branding' | 'monetize' | 'leads' | 'analytics'
 
 interface PublisherPanelProps {
   fileName: string
@@ -15,6 +17,7 @@ interface PublisherPanelProps {
   publication: PublicationInfo
   tableOfContents: TocEntry[]
   linkHotspots: LinkHotspot[]
+  popUpPanels: PopUpPanel[]
   spreadView: boolean
   branding: BrandingConfig
   monetization: MonetizationConfig
@@ -25,6 +28,8 @@ interface PublisherPanelProps {
   onPublicationChange: (publication: PublicationInfo) => void
   onTableOfContentsChange: (entries: TocEntry[]) => void
   onLinkHotspotsChange: (hotspots: LinkHotspot[]) => void
+  onPopUpPanelsChange: (panels: PopUpPanel[]) => void
+  onPanelPosition?: (panel: PopUpPanel) => void
   onSpreadViewChange: (spreadView: boolean) => void
   onBrandingChange: (branding: BrandingConfig) => void
   onMonetizationChange?: (monetization: MonetizationConfig) => void
@@ -48,6 +53,7 @@ export function PublisherPanel({
   publication,
   tableOfContents,
   linkHotspots,
+  popUpPanels,
   spreadView,
   branding,
   monetization,
@@ -58,6 +64,8 @@ export function PublisherPanel({
   onPublicationChange,
   onTableOfContentsChange,
   onLinkHotspotsChange,
+  onPopUpPanelsChange,
+  onPanelPosition,
   onSpreadViewChange,
   onBrandingChange,
   onMonetizationChange,
@@ -80,6 +88,12 @@ export function PublisherPanel({
   const [linkUrl, setLinkUrl] = useState('')
   const [linkLabel, setLinkLabel] = useState('')
   const [linkError, setLinkError] = useState('')
+  const [panelPage, setPanelPage] = useState(0)
+  const [panelKind, setPanelKind] = useState<PopUpPanelKind>('footnote')
+  const [panelTriggerLabel, setPanelTriggerLabel] = useState('')
+  const [panelTitle, setPanelTitle] = useState('')
+  const [panelBody, setPanelBody] = useState('')
+  const [panelError, setPanelError] = useState('')
   const [newTocTitle, setNewTocTitle] = useState('')
   const [newTocPage, setNewTocPage] = useState(0)
   const [logoUploading, setLogoUploading] = useState(false)
@@ -119,6 +133,31 @@ export function PublisherPanel({
     setLinkLabel('')
   }
 
+  function addPanel() {
+    const panel = createPopUpPanel(
+      panelPage,
+      panelKind,
+      panelTriggerLabel,
+      panelTitle,
+      panelBody,
+    )
+    if (!panel) {
+      setPanelError('Enter panel content')
+      return
+    }
+    setPanelError('')
+    onPopUpPanelsChange([...popUpPanels, panel])
+    setPanelBody('')
+    onPanelPosition?.(panel)
+  }
+
+  function updatePanelKind(kind: PopUpPanelKind) {
+    setPanelKind(kind)
+    const defaults = POP_UP_PANEL_KIND_DEFAULTS[kind]
+    setPanelTriggerLabel(defaults.triggerLabel)
+    setPanelTitle(defaults.title)
+  }
+
   function updateBranding(patch: Partial<BrandingConfig>) {
     onBrandingChange({ ...branding, ...patch })
   }
@@ -145,6 +184,7 @@ export function PublisherPanel({
     { id: 'details', label: 'Details' },
     { id: 'contents', label: 'Contents' },
     { id: 'links', label: 'Links' },
+    { id: 'panels', label: 'Panels' },
     { id: 'monetize', label: 'Monetize' },
     { id: 'leads', label: 'Leads' },
     { id: 'branding', label: 'Branding' },
@@ -419,6 +459,98 @@ export function PublisherPanel({
                 {linkError && <p className="text-sm text-red-500">{linkError}</p>}
                 <button type="button" onClick={addLink} className="apple-btn-secondary w-full">
                   Add link
+                </button>
+              </div>
+            </>
+          )}
+
+          {tab === 'panels' && (
+            <>
+              <p className="text-sm text-apple-muted">
+                Add pop-up footnotes, specs, and citations readers can open without leaving the page.
+                Use Move &amp; resize mode to position the trigger button.
+              </p>
+
+              {popUpPanels.length > 0 && (
+                <ul className="max-h-40 space-y-1 overflow-y-auto rounded-xl border border-apple-border-light p-2">
+                  {popUpPanels.map((panel) => (
+                    <li
+                      key={panel.id}
+                      className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-apple-gray"
+                    >
+                      <span className="min-w-0 flex-1 truncate">
+                        {panel.triggerLabel} · {panel.title}
+                      </span>
+                      <span className="shrink-0 tabular-nums text-apple-muted">p.{panel.pageIndex + 1}</span>
+                      {onPanelPosition && (
+                        <button
+                          type="button"
+                          onClick={() => onPanelPosition(panel)}
+                          className="shrink-0 text-apple-blue hover:underline"
+                        >
+                          Position
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        aria-label={`Remove ${panel.title}`}
+                        onClick={() =>
+                          onPopUpPanelsChange(popUpPanels.filter((item) => item.id !== panel.id))
+                        }
+                        className="text-apple-muted hover:text-red-500"
+                      >
+                        ×
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              <div className="space-y-3 rounded-xl border border-apple-border-light p-4">
+                <select
+                  value={panelPage}
+                  onChange={(e) => setPanelPage(Number(e.target.value))}
+                  className="apple-input"
+                >
+                  {Array.from({ length: totalPages }, (_, i) => (
+                    <option key={i} value={i}>
+                      Page {i + 1}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={panelKind}
+                  onChange={(e) => updatePanelKind(e.target.value as PopUpPanelKind)}
+                  className="apple-input"
+                >
+                  {(Object.keys(POP_UP_PANEL_KIND_LABELS) as PopUpPanelKind[]).map((kind) => (
+                    <option key={kind} value={kind}>
+                      {POP_UP_PANEL_KIND_LABELS[kind]}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  value={panelTriggerLabel}
+                  onChange={(e) => setPanelTriggerLabel(e.target.value)}
+                  placeholder="Trigger label (shown on page)"
+                  className="apple-input"
+                />
+                <input
+                  value={panelTitle}
+                  onChange={(e) => setPanelTitle(e.target.value)}
+                  placeholder="Panel title"
+                  className="apple-input"
+                />
+                <textarea
+                  value={panelBody}
+                  onChange={(e) => setPanelBody(e.target.value)}
+                  placeholder="Footnote, spec details, citation text…"
+                  rows={4}
+                  className="apple-input resize-none"
+                />
+                {panelError && <p className="text-sm text-red-500">{panelError}</p>}
+                <button type="button" onClick={addPanel} className="apple-btn-secondary w-full">
+                  Add panel
                 </button>
               </div>
             </>

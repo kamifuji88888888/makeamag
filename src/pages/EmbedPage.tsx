@@ -85,6 +85,7 @@ export function EmbedPage() {
         flipbookId={id ?? null}
         videoEmbeds={state.videoEmbeds}
         linkHotspots={state.linkHotspots}
+        popUpPanels={state.popUpPanels}
         publication={state.publication}
         tableOfContents={state.tableOfContents}
         spreadView={state.spreadView}

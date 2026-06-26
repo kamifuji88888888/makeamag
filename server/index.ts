@@ -13,6 +13,7 @@ import type {
   LeadCaptureConfig,
   LinkHotspot,
   MonetizationConfig,
+  PopUpPanel,
   PublicationInfo,
   TocEntry,
   VideoEmbed,
@@ -26,6 +27,7 @@ import {
   normalizeBranding,
   normalizeLeadCapture,
   normalizeMonetization,
+  normalizePopUpPanels,
   normalizePublication,
   toPublicMeta,
 } from '../shared/flipbook.js'
@@ -462,6 +464,7 @@ app.post('/api/flipbooks', upload.single('pdf'), async (req, res) => {
     )
     const tableOfContents = parseJsonField<TocEntry[]>(req.body.tableOfContents, [])
     const linkHotspots = parseJsonField<LinkHotspot[]>(req.body.linkHotspots, [])
+    const popUpPanels = normalizePopUpPanels(parseJsonField<PopUpPanel[]>(req.body.popUpPanels, []))
     const spreadView = req.body.spreadView === 'true' || req.body.spreadView === true
     const branding = normalizeBranding(
       parseJsonField<Partial<BrandingConfig>>(req.body.branding, DEFAULT_BRANDING),
@@ -489,6 +492,7 @@ app.post('/api/flipbooks', upload.single('pdf'), async (req, res) => {
       publication,
       tableOfContents,
       linkHotspots,
+      popUpPanels,
       spreadView,
       branding,
       monetization,
@@ -659,6 +663,7 @@ app.patch('/api/flipbooks/:id', async (req, res) => {
     publication,
     tableOfContents,
     linkHotspots,
+    popUpPanels,
     spreadView,
     branding,
     monetization,
@@ -672,6 +677,7 @@ app.patch('/api/flipbooks/:id', async (req, res) => {
     publication?: Partial<PublicationInfo>
     tableOfContents?: TocEntry[]
     linkHotspots?: LinkHotspot[]
+    popUpPanels?: PopUpPanel[]
     spreadView?: boolean
     branding?: Partial<BrandingConfig>
     monetization?: Partial<MonetizationConfig>
@@ -706,6 +712,14 @@ app.patch('/api/flipbooks/:id', async (req, res) => {
       return
     }
     meta.linkHotspots = linkHotspots
+  }
+
+  if (popUpPanels !== undefined) {
+    if (!Array.isArray(popUpPanels)) {
+      res.status(400).json({ error: 'popUpPanels must be an array' })
+      return
+    }
+    meta.popUpPanels = normalizePopUpPanels(popUpPanels)
   }
 
   if (spreadView !== undefined) {
