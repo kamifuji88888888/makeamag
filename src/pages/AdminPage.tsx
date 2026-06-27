@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { PasswordInput } from '../components/PasswordInput'
 import { Link } from 'react-router-dom'
 import type { AdminMetricsSummary } from '../../shared/adminMetrics'
 import { planDisplayName } from '../../shared/plans'
@@ -64,12 +65,10 @@ export function AdminPage() {
               void loadMetrics(inputSecret.trim())
             }}
           >
-            <input
-              type="password"
+            <PasswordInput
               value={inputSecret}
               onChange={(event) => setInputSecret(event.target.value)}
               placeholder="Admin secret"
-              className="apple-input"
               autoComplete="off"
             />
             <button type="submit" className="apple-btn-primary w-full" disabled={loading}>

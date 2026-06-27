@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { PasswordInput } from './PasswordInput'
 
 interface PasswordGateProps {
   fileName: string
@@ -39,13 +40,12 @@ export function PasswordGate({ fileName, onUnlock }: PasswordGateProps) {
         <label htmlFor="flipbook-password" className="mb-2 block text-sm text-apple-muted">
           Enter password to continue
         </label>
-        <input
+        <PasswordInput
           id="flipbook-password"
-          type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           autoFocus
-          className="apple-input mb-4"
+          wrapperClassName="mb-4"
           placeholder="Password"
         />
 

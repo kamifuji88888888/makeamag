@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { PasswordInput } from '../components/PasswordInput'
 import type { BrandingConfig, PublicationInfo } from '../../shared/flipbook'
 import { displayTitle } from '../../shared/flipbook'
 import { getEmbedCode, getShareUrl } from '../lib/api'
@@ -174,13 +175,12 @@ export function ShareDialog({
             )}
 
             {passwordEnabled && (
-              <input
-                type="password"
+              <PasswordInput
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 onBlur={handlePasswordBlur}
                 placeholder={isPasswordProtected ? 'New password' : 'Set a password'}
-                className="apple-input mt-4"
+                wrapperClassName="mt-4"
               />
             )}
           </div>

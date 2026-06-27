@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { PasswordInput } from '../components/PasswordInput'
 import { resetPassword } from '../lib/authApi'
 import { useAuth } from '../context/AuthContext'
 import { AppNav } from '../components/AppNav'
@@ -127,16 +128,14 @@ export function ResetPasswordPage() {
                     <label htmlFor="password" className="mb-2 block text-sm text-apple-muted">
                       New password
                     </label>
-                    <input
+                    <PasswordInput
                       id="password"
-                      type="password"
                       autoComplete="new-password"
                       required
                       minLength={8}
                       value={password}
                       onChange={(event) => setPassword(event.target.value)}
                       placeholder="At least 8 characters"
-                      className="apple-input"
                     />
                   </div>
 
@@ -144,16 +143,14 @@ export function ResetPasswordPage() {
                     <label htmlFor="confirmPassword" className="mb-2 block text-sm text-apple-muted">
                       Confirm password
                     </label>
-                    <input
+                    <PasswordInput
                       id="confirmPassword"
-                      type="password"
                       autoComplete="new-password"
                       required
                       minLength={8}
                       value={confirmPassword}
                       onChange={(event) => setConfirmPassword(event.target.value)}
                       placeholder="Re-enter your password"
-                      className="apple-input"
                     />
                   </div>
 

@@ -9,6 +9,7 @@ import {
 } from '../lib/authApi'
 import { useAuth } from '../context/AuthContext'
 import { AppNav } from '../components/AppNav'
+import { PasswordInput } from '../components/PasswordInput'
 import { SiteFooter } from '../components/SiteFooter'
 
 type Mode = 'signin' | 'signup' | 'magic'
@@ -233,16 +234,14 @@ export function AuthPage() {
                           </Link>
                         )}
                       </div>
-                      <input
+                      <PasswordInput
                         id="password"
-                        type="password"
                         autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
                         required
                         minLength={8}
                         value={password}
                         onChange={(event) => setPassword(event.target.value)}
                         placeholder={mode === 'signup' ? 'At least 8 characters' : 'Your password'}
-                        className="apple-input"
                       />
                     </div>
                   )}
