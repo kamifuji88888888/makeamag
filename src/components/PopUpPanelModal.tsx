@@ -1,27 +1,46 @@
-import type { PopUpPanel } from '../../shared/flipbook'
+import type { BrandingConfig, PopUpPanel, PopUpPanelStyle } from '../../shared/flipbook'
 import { POP_UP_PANEL_KIND_LABELS } from '../../shared/flipbook'
+import { resolvePopUpPanelStyle } from '../lib/popUpPanelStyle'
 
 interface PopUpPanelModalProps {
   panel: PopUpPanel
+  popUpPanelStyle?: PopUpPanelStyle
+  branding?: BrandingConfig
   onClose: () => void
 }
 
-export function PopUpPanelModal({ panel, onClose }: PopUpPanelModalProps) {
+export function PopUpPanelModal({
+  panel,
+  popUpPanelStyle,
+  branding,
+  onClose,
+}: PopUpPanelModalProps) {
+  const resolved = resolvePopUpPanelStyle(panel, popUpPanelStyle, branding)
+
   return (
     <div
-      className="apple-modal-overlay fixed inset-0 z-[60] flex items-center justify-center p-4"
+      className="apple-modal-overlay popup-panel-overlay-enter fixed inset-0 z-[60] flex items-center justify-center p-4"
       onMouseDown={onClose}
     >
       <div
-        className="apple-modal w-full max-w-md"
+        className={[
+          'apple-modal popup-panel-enter w-full',
+          resolved.modalMaxWidthClass,
+        ].join(' ')}
         role="dialog"
         aria-modal="true"
         aria-labelledby="popup-panel-title"
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between border-b border-apple-border-light px-5 py-4">
+        <div
+          className="flex items-start justify-between border-b px-5 py-4"
+          style={{ borderColor: `${resolved.colors.badge}22` }}
+        >
           <div className="min-w-0 pr-4">
-            <p className="text-xs font-medium uppercase tracking-wide text-violet-600">
+            <p
+              className="text-xs font-medium uppercase tracking-wide"
+              style={{ color: resolved.colors.badge }}
+            >
               {POP_UP_PANEL_KIND_LABELS[panel.kind]}
             </p>
             <h3 id="popup-panel-title" className="mt-1 text-[1.125rem] font-semibold text-apple-text">

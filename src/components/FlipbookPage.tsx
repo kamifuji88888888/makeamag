@@ -1,5 +1,5 @@
 import { forwardRef } from 'react'
-import type { LinkHotspot, PopUpPanel, VideoEmbed } from '../../shared/flipbook'
+import type { BrandingConfig, LinkHotspot, PopUpPanel, PopUpPanelStyle, VideoEmbed } from '../../shared/flipbook'
 import { LinkHotspotOverlay } from './LinkHotspotOverlay'
 import { PopUpPanelOverlay } from './PopUpPanelOverlay'
 import { VideoOverlay } from './VideoOverlay'
@@ -12,6 +12,8 @@ interface FlipbookPageProps {
   videoEmbeds?: VideoEmbed[]
   linkHotspots?: LinkHotspot[]
   popUpPanels?: PopUpPanel[]
+  popUpPanelStyle?: PopUpPanelStyle
+  branding?: BrandingConfig
   interactiveVideos?: boolean
   editableVideos?: boolean
   editableLinks?: boolean
@@ -40,6 +42,8 @@ export const FlipbookPage = forwardRef<HTMLDivElement, FlipbookPageProps>(
       videoEmbeds = [],
       linkHotspots = [],
       popUpPanels = [],
+      popUpPanelStyle,
+      branding,
       interactiveVideos = true,
       editableVideos = false,
       editableLinks = false,
@@ -86,6 +90,8 @@ export const FlipbookPage = forwardRef<HTMLDivElement, FlipbookPageProps>(
           <PopUpPanelOverlay
             key={panel.id}
             panel={panel}
+            popUpPanelStyle={popUpPanelStyle}
+            branding={branding}
             editable={editablePanels}
             selected={selectedPanelId === panel.id}
             onSelect={() => onSelectPanel?.(panel.id)}

@@ -1,5 +1,6 @@
 import { useCallback, useRef } from 'react'
-import type { PopUpPanel } from '../../shared/flipbook'
+import type { BrandingConfig, PopUpPanel, PopUpPanelStyle } from '../../shared/flipbook'
+import { resolvePopUpPanelStyle } from '../lib/popUpPanelStyle'
 import { clampEmbedBounds } from '../lib/videoBounds'
 
 interface DragState {
@@ -12,6 +13,8 @@ interface DragState {
 
 interface PopUpPanelOverlayProps {
   panel: PopUpPanel
+  popUpPanelStyle?: PopUpPanelStyle
+  branding?: BrandingConfig
   editable?: boolean
   selected?: boolean
   onSelect?: () => void
@@ -21,6 +24,8 @@ interface PopUpPanelOverlayProps {
 
 export function PopUpPanelOverlay({
   panel,
+  popUpPanelStyle,
+  branding,
   editable = false,
   selected = false,
   onSelect,
@@ -29,6 +34,8 @@ export function PopUpPanelOverlay({
 }: PopUpPanelOverlayProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef<DragState | null>(null)
+  const resolved = resolvePopUpPanelStyle(panel, popUpPanelStyle, branding)
+  const isCircle = resolved.triggerShape === 'circle'
 
   const stopFlip = (e: React.MouseEvent | React.PointerEvent) => {
     e.stopPropagation()
@@ -94,18 +101,28 @@ export function PopUpPanelOverlay({
     height: `${panel.height}%`,
   }
 
+  const shapeClass = isCircle ? 'rounded-full' : 'rounded-md'
+  const editorRingClass = selected ? 'ring-2 ring-offset-1' : 'ring-2'
+
   if (editable) {
     return (
       <div
         ref={containerRef}
         className={[
-          'absolute z-10 touch-none select-none overflow-hidden rounded-md',
-          'ring-2 ' +
-            (selected
-              ? 'ring-violet-600 ring-offset-1 ring-offset-violet-600/20'
-              : 'ring-violet-600/40'),
+          'absolute z-10 touch-none select-none overflow-hidden',
+          shapeClass,
+          editorRingClass,
         ].join(' ')}
-        style={style}
+        style={{
+          ...style,
+          boxShadow: selected ? undefined : `0 0 0 1px ${resolved.colors.triggerRing}`,
+          ...(selected
+            ? {
+                ['--tw-ring-color' as string]: resolved.colors.editorRing,
+                ['--tw-ring-offset-color' as string]: `${resolved.colors.editorRing}33`,
+              }
+            : {}),
+        }}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
@@ -113,15 +130,23 @@ export function PopUpPanelOverlay({
         onClick={stopFlip}
       >
         <div
-          className="relative h-full w-full cursor-move bg-violet-500/25"
+          className="relative h-full w-full cursor-move"
+          style={{ backgroundColor: resolved.colors.editorBg }}
           onPointerDown={handlePointerDown('move')}
         >
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-1 text-center text-[9px] font-semibold text-violet-900">
+          <div
+            className={[
+              'pointer-events-none absolute inset-0 flex items-center justify-center px-1 text-center font-semibold',
+              isCircle ? 'text-[8px]' : 'text-[9px]',
+            ].join(' ')}
+            style={{ color: resolved.colors.editorText }}
+          >
             {panel.triggerLabel}
           </div>
         </div>
         <div
-          className="absolute bottom-0 right-0 z-20 h-4 w-4 cursor-se-resize rounded-tl bg-violet-600 shadow"
+          className="absolute bottom-0 right-0 z-20 h-4 w-4 cursor-se-resize rounded-tl shadow"
+          style={{ backgroundColor: resolved.colors.editorRing }}
           onPointerDown={handlePointerDown('resize')}
         />
       </div>
@@ -133,8 +158,18 @@ export function PopUpPanelOverlay({
       type="button"
       title={panel.title}
       aria-label={`Open ${panel.title}`}
-      className="absolute z-10 flex items-center justify-center rounded-md bg-violet-600/90 px-1 text-[9px] font-semibold text-white shadow-md ring-1 ring-violet-700/30 transition hover:bg-violet-600"
-      style={style}
+      className={[
+        'absolute z-10 flex items-center justify-center font-semibold shadow-md transition hover:brightness-110',
+        shapeClass,
+        isCircle ? 'text-[8px]' : 'px-1 text-[9px]',
+      ].join(' ')}
+      style={{
+        ...style,
+        backgroundColor: resolved.colors.triggerBg,
+        color: resolved.colors.triggerText,
+        boxShadow: `0 2px 8px ${resolved.colors.triggerRing}`,
+        outline: `1px solid ${resolved.colors.triggerRing}`,
+      }}
       onMouseDown={stopFlip}
       onClick={(e) => {
         stopFlip(e)

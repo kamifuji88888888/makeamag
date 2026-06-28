@@ -37,6 +37,15 @@ export interface LinkHotspot {
 }
 
 export type PopUpPanelKind = 'footnote' | 'spec' | 'citation' | 'note'
+export type PopUpPanelTheme = 'brand' | 'violet' | 'slate' | 'amber' | 'emerald'
+export type PopUpPanelTriggerShape = 'pill' | 'circle'
+export type PopUpPanelModalSize = 'narrow' | 'standard' | 'wide'
+
+export interface PopUpPanelStyle {
+  theme: PopUpPanelTheme
+  triggerShape: PopUpPanelTriggerShape
+  modalSize: PopUpPanelModalSize
+}
 
 export interface PopUpPanel {
   id: string
@@ -49,6 +58,9 @@ export interface PopUpPanel {
   y: number
   width: number
   height: number
+  theme?: PopUpPanelTheme
+  triggerShape?: PopUpPanelTriggerShape
+  modalSize?: PopUpPanelModalSize
 }
 
 export interface BrandingConfig {
@@ -99,6 +111,7 @@ export interface FlipbookPublicMeta {
   tableOfContents: TocEntry[]
   linkHotspots: LinkHotspot[]
   popUpPanels: PopUpPanel[]
+  popUpPanelStyle: PopUpPanelStyle
   spreadView: boolean
   branding: BrandingConfig
   monetization: MonetizationConfig
@@ -210,6 +223,37 @@ export const POP_UP_PANEL_PRESET = {
   height: 7,
 }
 
+export const POP_UP_PANEL_CIRCLE_PRESET = {
+  x: 44,
+  y: 78,
+  width: 10,
+  height: 10,
+}
+
+export const DEFAULT_POP_UP_PANEL_STYLE: PopUpPanelStyle = {
+  theme: 'violet',
+  triggerShape: 'pill',
+  modalSize: 'standard',
+}
+
+export const POP_UP_PANEL_THEME_LABELS: Record<PopUpPanelTheme, string> = {
+  brand: 'Brand color',
+  violet: 'Violet',
+  slate: 'Slate',
+  amber: 'Amber',
+  emerald: 'Emerald',
+}
+
+export const POP_UP_PANEL_KIND_STYLE_DEFAULTS: Record<
+  PopUpPanelKind,
+  Pick<PopUpPanel, 'theme' | 'triggerShape' | 'modalSize'>
+> = {
+  footnote: { theme: 'slate', triggerShape: 'circle', modalSize: 'narrow' },
+  spec: { theme: 'emerald', triggerShape: 'pill', modalSize: 'wide' },
+  citation: { theme: 'amber', triggerShape: 'circle', modalSize: 'narrow' },
+  note: { theme: 'violet', triggerShape: 'pill', modalSize: 'standard' },
+}
+
 export const POP_UP_PANEL_KIND_LABELS: Record<PopUpPanelKind, string> = {
   footnote: 'Footnote',
   spec: 'Specifications',
@@ -225,6 +269,32 @@ export const POP_UP_PANEL_KIND_DEFAULTS: Record<
   spec: { triggerLabel: 'Specs', title: 'Specifications' },
   citation: { triggerLabel: '[1]', title: 'Source' },
   note: { triggerLabel: '+', title: 'Note' },
+}
+
+export function normalizePopUpPanelTheme(value: unknown): PopUpPanelTheme | undefined {
+  if (value === 'brand' || value === 'violet' || value === 'slate' || value === 'amber' || value === 'emerald') {
+    return value
+  }
+  return undefined
+}
+
+export function normalizePopUpPanelTriggerShape(value: unknown): PopUpPanelTriggerShape | undefined {
+  if (value === 'pill' || value === 'circle') return value
+  return undefined
+}
+
+export function normalizePopUpPanelModalSize(value: unknown): PopUpPanelModalSize | undefined {
+  if (value === 'narrow' || value === 'standard' || value === 'wide') return value
+  return undefined
+}
+
+export function normalizePopUpPanelStyle(style?: Partial<PopUpPanelStyle>): PopUpPanelStyle {
+  return {
+    theme: normalizePopUpPanelTheme(style?.theme) ?? DEFAULT_POP_UP_PANEL_STYLE.theme,
+    triggerShape:
+      normalizePopUpPanelTriggerShape(style?.triggerShape) ?? DEFAULT_POP_UP_PANEL_STYLE.triggerShape,
+    modalSize: normalizePopUpPanelModalSize(style?.modalSize) ?? DEFAULT_POP_UP_PANEL_STYLE.modalSize,
+  }
 }
 
 export function normalizePopUpPanel(panel: Partial<PopUpPanel>): PopUpPanel | null {
@@ -243,6 +313,9 @@ export function normalizePopUpPanel(panel: Partial<PopUpPanel>): PopUpPanel | nu
   const y = typeof panel.y === 'number' ? panel.y : POP_UP_PANEL_PRESET.y
   const width = typeof panel.width === 'number' ? panel.width : POP_UP_PANEL_PRESET.width
   const height = typeof panel.height === 'number' ? panel.height : POP_UP_PANEL_PRESET.height
+  const theme = normalizePopUpPanelTheme(panel.theme)
+  const triggerShape = normalizePopUpPanelTriggerShape(panel.triggerShape)
+  const modalSize = normalizePopUpPanelModalSize(panel.modalSize)
 
   return {
     id: panel.id?.trim() || crypto.randomUUID(),
@@ -255,6 +328,9 @@ export function normalizePopUpPanel(panel: Partial<PopUpPanel>): PopUpPanel | nu
     y,
     width,
     height,
+    ...(theme ? { theme } : {}),
+    ...(triggerShape ? { triggerShape } : {}),
+    ...(modalSize ? { modalSize } : {}),
   }
 }
 
@@ -361,6 +437,7 @@ export function toPublicMeta(meta: FlipbookStoredMeta): FlipbookPublicMeta {
     tableOfContents: meta.tableOfContents ?? [],
     linkHotspots: meta.linkHotspots ?? [],
     popUpPanels: normalizePopUpPanels(meta.popUpPanels),
+    popUpPanelStyle: normalizePopUpPanelStyle(meta.popUpPanelStyle),
     spreadView: meta.spreadView ?? false,
     branding: normalizeBranding(meta.branding),
     monetization: publicMonetizationFromStored(meta.monetization, meta.stripeAccountId),

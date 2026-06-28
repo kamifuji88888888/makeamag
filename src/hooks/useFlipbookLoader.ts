@@ -6,11 +6,12 @@ import type {
   LinkHotspot,
   MonetizationConfig,
   PopUpPanel,
+  PopUpPanelStyle,
   PublicationInfo,
   TocEntry,
   VideoEmbed,
 } from '../../shared/flipbook'
-import { normalizeBranding, normalizeLeadCapture, normalizeMonetization, normalizePublication } from '../../shared/flipbook'
+import { normalizeBranding, normalizeLeadCapture, normalizeMonetization, normalizePopUpPanelStyle, normalizePublication } from '../../shared/flipbook'
 import {
   clearAccessToken,
   fetchFlipbook,
@@ -35,6 +36,7 @@ export type FlipbookLoadState =
       videoEmbeds: VideoEmbed[]
       linkHotspots: LinkHotspot[]
       popUpPanels: PopUpPanel[]
+      popUpPanelStyle: PopUpPanelStyle
       publication: PublicationInfo
       tableOfContents: TocEntry[]
       spreadView: boolean
@@ -75,6 +77,7 @@ export function useFlipbookLoader(id: string | undefined) {
         videoEmbeds: meta.videoEmbeds,
         linkHotspots: meta.linkHotspots ?? [],
         popUpPanels: meta.popUpPanels ?? [],
+        popUpPanelStyle: normalizePopUpPanelStyle(meta.popUpPanelStyle),
         publication: normalizePublication(meta.publication),
         tableOfContents: meta.tableOfContents ?? [],
         spreadView: meta.spreadView ?? result.aspectRatio > 1.15,

@@ -48,6 +48,7 @@ export function useFlipbookLibrary() {
         | 'tableOfContents'
         | 'linkHotspots'
         | 'popUpPanels'
+        | 'popUpPanelStyle'
         | 'spreadView'
         | 'branding'
         | 'thumbnail'
@@ -86,6 +87,7 @@ export function useFlipbookLibrary() {
         tableOfContents?: LibraryEntry['tableOfContents']
         linkHotspots?: LibraryEntry['linkHotspots']
         popUpPanels?: LibraryEntry['popUpPanels']
+        popUpPanelStyle?: LibraryEntry['popUpPanelStyle']
         spreadView?: boolean
         branding?: LibraryEntry['branding']
         thumbnail?: string
@@ -101,6 +103,7 @@ export function useFlipbookLibrary() {
         ...(flipbook.tableOfContents ? { tableOfContents: flipbook.tableOfContents } : {}),
         ...(flipbook.linkHotspots ? { linkHotspots: flipbook.linkHotspots } : {}),
         ...(flipbook.popUpPanels ? { popUpPanels: flipbook.popUpPanels } : {}),
+        ...(flipbook.popUpPanelStyle ? { popUpPanelStyle: flipbook.popUpPanelStyle } : {}),
         ...(flipbook.spreadView !== undefined ? { spreadView: flipbook.spreadView } : {}),
         ...(flipbook.branding ? { branding: flipbook.branding } : {}),
         ...(flipbook.thumbnail ? { thumbnail: flipbook.thumbnail } : {}),

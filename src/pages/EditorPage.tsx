@@ -14,11 +14,12 @@ import type {
   LinkHotspot,
   MonetizationConfig,
   PopUpPanel,
+  PopUpPanelStyle,
   PublicationInfo,
   TocEntry,
   VideoEmbed,
 } from '../../shared/flipbook'
-import { DEFAULT_BRANDING, DEFAULT_LEAD_CAPTURE, DEFAULT_MONETIZATION, DEFAULT_PUBLICATION, normalizeBranding, normalizeLeadCapture, normalizeMonetization, normalizePublication } from '../../shared/flipbook'
+import { DEFAULT_BRANDING, DEFAULT_LEAD_CAPTURE, DEFAULT_MONETIZATION, DEFAULT_POP_UP_PANEL_STYLE, DEFAULT_PUBLICATION, normalizeBranding, normalizeLeadCapture, normalizeMonetization, normalizePopUpPanelStyle, normalizePublication } from '../../shared/flipbook'
 import {
   deleteFlipbookLogo,
   fetchFlipbook,
@@ -71,6 +72,7 @@ type ReadyState = {
   videoEmbeds: VideoEmbed[]
   linkHotspots: LinkHotspot[]
   popUpPanels: PopUpPanel[]
+  popUpPanelStyle: PopUpPanelStyle
   publication: PublicationInfo
   tableOfContents: TocEntry[]
   spreadView: boolean
@@ -108,6 +110,7 @@ function publisherPayload(state: ReadyState, planId: PlanId) {
     tableOfContents: state.tableOfContents,
     linkHotspots: state.linkHotspots,
     popUpPanels: state.popUpPanels,
+    popUpPanelStyle: state.popUpPanelStyle,
     spreadView: state.spreadView,
     branding: sanitizeBrandingForPlan(state.branding, planId),
     monetization: sanitizeMonetizationForPlan(state.monetization, planId),
@@ -124,6 +127,7 @@ function libraryPublisherPatch(state: ReadyState) {
     tableOfContents: state.tableOfContents,
     linkHotspots: state.linkHotspots,
     popUpPanels: state.popUpPanels,
+    popUpPanelStyle: state.popUpPanelStyle,
     spreadView: state.spreadView,
     branding: state.branding,
     monetization: state.monetization,
@@ -268,6 +272,7 @@ export function EditorPage() {
           videoEmbeds: [],
           linkHotspots: [],
           popUpPanels: [],
+          popUpPanelStyle: { ...DEFAULT_POP_UP_PANEL_STYLE },
           publication,
           tableOfContents: outline,
           spreadView,
@@ -323,6 +328,7 @@ export function EditorPage() {
             videoEmbeds: [],
             linkHotspots: entry.linkHotspots ?? [],
             popUpPanels: entry.popUpPanels ?? [],
+            popUpPanelStyle: normalizePopUpPanelStyle(entry.popUpPanelStyle),
             publication,
             tableOfContents: entry.tableOfContents ?? [],
             spreadView: entry.spreadView ?? defaultSpreadView(result.aspectRatio),
@@ -353,6 +359,7 @@ export function EditorPage() {
             videoEmbeds: meta.videoEmbeds,
             linkHotspots: meta.linkHotspots ?? [],
             popUpPanels: meta.popUpPanels ?? [],
+            popUpPanelStyle: normalizePopUpPanelStyle(meta.popUpPanelStyle),
             publication: normalizePublication(meta.publication),
             tableOfContents: meta.tableOfContents ?? [],
             spreadView: meta.spreadView ?? defaultSpreadView(result.aspectRatio),
@@ -421,6 +428,13 @@ export function EditorPage() {
   const handlePopUpPanelsChange = useCallback(
     (popUpPanels: PopUpPanel[]) => {
       updateReady((prev) => ({ ...prev, popUpPanels }))
+    },
+    [updateReady],
+  )
+
+  const handlePopUpPanelStyleChange = useCallback(
+    (popUpPanelStyle: PopUpPanelStyle) => {
+      updateReady((prev) => ({ ...prev, popUpPanelStyle: normalizePopUpPanelStyle(popUpPanelStyle) }))
     },
     [updateReady],
   )
@@ -835,6 +849,7 @@ export function EditorPage() {
               videoEmbeds={state.videoEmbeds}
               linkHotspots={state.linkHotspots}
               popUpPanels={state.popUpPanels}
+              popUpPanelStyle={state.popUpPanelStyle}
               publication={state.publication}
               tableOfContents={state.tableOfContents}
               spreadView={state.spreadView}
@@ -853,6 +868,7 @@ export function EditorPage() {
               onVideoEmbedsChange={handleVideoEmbedsChange}
               onLinkHotspotsChange={handleLinkHotspotsChange}
               onPopUpPanelsChange={handlePopUpPanelsChange}
+              onPopUpPanelStyleChange={handlePopUpPanelStyleChange}
               onPublicationChange={handlePublicationChange}
               onTableOfContentsChange={handleTableOfContentsChange}
               onSpreadViewChange={handleSpreadViewChange}

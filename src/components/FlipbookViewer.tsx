@@ -13,12 +13,13 @@ import type {
   LinkHotspot,
   MonetizationConfig,
   PopUpPanel,
+  PopUpPanelStyle,
   PublicationInfo,
   TocEntry,
   VideoEmbed,
 } from '../../shared/flipbook'
 import type { PlanFeature } from '../../shared/plans'
-import { DEFAULT_BRANDING, DEFAULT_LEAD_CAPTURE, DEFAULT_MONETIZATION, DEFAULT_PUBLICATION, displayTitle, normalizeLeadCapture } from '../../shared/flipbook'
+import { DEFAULT_BRANDING, DEFAULT_LEAD_CAPTURE, DEFAULT_MONETIZATION, DEFAULT_POP_UP_PANEL_STYLE, DEFAULT_PUBLICATION, displayTitle, normalizeLeadCapture } from '../../shared/flipbook'
 import { brandingScopeStyle } from '../lib/branding'
 import { createStripeCheckout } from '../lib/api'
 import { useFlipbookAnalytics } from '../hooks/useFlipbookAnalytics'
@@ -48,6 +49,7 @@ interface FlipbookViewerProps {
   videoEmbeds?: VideoEmbed[]
   linkHotspots?: LinkHotspot[]
   popUpPanels?: PopUpPanel[]
+  popUpPanelStyle?: PopUpPanelStyle
   publication?: PublicationInfo
   tableOfContents?: TocEntry[]
   spreadView?: boolean
@@ -70,6 +72,7 @@ interface FlipbookViewerProps {
   onVideoEmbedsChange?: (embeds: VideoEmbed[]) => void
   onLinkHotspotsChange?: (hotspots: LinkHotspot[]) => void
   onPopUpPanelsChange?: (panels: PopUpPanel[]) => void
+  onPopUpPanelStyleChange?: (style: PopUpPanelStyle) => void
   onPublicationChange?: (publication: PublicationInfo) => void
   onTableOfContentsChange?: (entries: TocEntry[]) => void
   onSpreadViewChange?: (spreadView: boolean) => void
@@ -195,6 +198,7 @@ export function FlipbookViewer({
   videoEmbeds = [],
   linkHotspots = [],
   popUpPanels = [],
+  popUpPanelStyle = DEFAULT_POP_UP_PANEL_STYLE,
   publication = DEFAULT_PUBLICATION,
   tableOfContents = [],
   spreadView = false,
@@ -217,6 +221,7 @@ export function FlipbookViewer({
   onVideoEmbedsChange,
   onLinkHotspotsChange,
   onPopUpPanelsChange,
+  onPopUpPanelStyleChange,
   onPublicationChange,
   onTableOfContentsChange,
   onSpreadViewChange,
@@ -598,6 +603,8 @@ export function FlipbookViewer({
           videoEmbeds={videoEmbeds}
           linkHotspots={linkHotspots}
           popUpPanels={popUpPanels}
+          popUpPanelStyle={popUpPanelStyle}
+          branding={branding}
           interactiveVideos={!inlinePositionMode}
           editableVideos={inlinePositionMode}
           editableLinks={inlinePositionMode}
@@ -623,6 +630,8 @@ export function FlipbookViewer({
       videoEmbeds,
       linkHotspots,
       popUpPanels,
+      popUpPanelStyle,
+      branding,
       inlinePositionMode,
       selectedEmbedId,
       selectedLinkId,
@@ -831,7 +840,7 @@ export function FlipbookViewer({
         />
       )}
 
-      {showPublisherPanel && mode === 'editor' && onPublicationChange && onTableOfContentsChange && onLinkHotspotsChange && onPopUpPanelsChange && onSpreadViewChange && onBrandingChange && (
+      {showPublisherPanel && mode === 'editor' && onPublicationChange && onTableOfContentsChange && onLinkHotspotsChange && onPopUpPanelsChange && onPopUpPanelStyleChange && onSpreadViewChange && onBrandingChange && (
         <PublisherPanel
           fileName={fileName}
           totalPages={images.length}
@@ -839,6 +848,7 @@ export function FlipbookViewer({
           tableOfContents={tableOfContents}
           linkHotspots={linkHotspots}
           popUpPanels={popUpPanels}
+          popUpPanelStyle={popUpPanelStyle}
           spreadView={spreadView}
           monetization={monetization}
           leadCapture={normalizedLeadCapture}
@@ -848,6 +858,7 @@ export function FlipbookViewer({
           onTableOfContentsChange={onTableOfContentsChange}
           onLinkHotspotsChange={onLinkHotspotsChange}
           onPopUpPanelsChange={onPopUpPanelsChange}
+          onPopUpPanelStyleChange={onPopUpPanelStyleChange}
           onPanelPosition={enterPanelAdjustMode}
           onSpreadViewChange={onSpreadViewChange}
           onMonetizationChange={onMonetizationChange}
@@ -918,7 +929,12 @@ export function FlipbookViewer({
       )}
 
       {openPopUpPanel && (
-        <PopUpPanelModal panel={openPopUpPanel} onClose={() => setOpenPopUpPanel(null)} />
+        <PopUpPanelModal
+          panel={openPopUpPanel}
+          popUpPanelStyle={popUpPanelStyle}
+          branding={branding}
+          onClose={() => setOpenPopUpPanel(null)}
+        />
       )}
 
       {showSearch && visibleImages.length > 0 && (

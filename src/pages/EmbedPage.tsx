@@ -86,6 +86,7 @@ export function EmbedPage() {
         videoEmbeds={state.videoEmbeds}
         linkHotspots={state.linkHotspots}
         popUpPanels={state.popUpPanels}
+        popUpPanelStyle={state.popUpPanelStyle}
         publication={state.publication}
         tableOfContents={state.tableOfContents}
         spreadView={state.spreadView}

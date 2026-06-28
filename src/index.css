@@ -580,4 +580,37 @@ body {
     opacity: 0.55;
     transform: translateX(-50%) translateY(0);
   }
+
+  .popup-panel-enter,
+  .popup-panel-overlay-enter {
+    animation: none !important;
+  }
+}
+
+@keyframes popup-panel-overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes popup-panel-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.popup-panel-overlay-enter {
+  animation: popup-panel-overlay-in 0.18s ease-out;
+}
+
+.popup-panel-enter {
+  animation: popup-panel-in 0.22s ease-out;
 }

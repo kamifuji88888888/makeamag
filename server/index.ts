@@ -14,6 +14,7 @@ import type {
   LinkHotspot,
   MonetizationConfig,
   PopUpPanel,
+  PopUpPanelStyle,
   PublicationInfo,
   TocEntry,
   VideoEmbed,
@@ -27,6 +28,7 @@ import {
   normalizeBranding,
   normalizeLeadCapture,
   normalizeMonetization,
+  normalizePopUpPanelStyle,
   normalizePopUpPanels,
   normalizePublication,
   toPublicMeta,
@@ -465,6 +467,9 @@ app.post('/api/flipbooks', upload.single('pdf'), async (req, res) => {
     const tableOfContents = parseJsonField<TocEntry[]>(req.body.tableOfContents, [])
     const linkHotspots = parseJsonField<LinkHotspot[]>(req.body.linkHotspots, [])
     const popUpPanels = normalizePopUpPanels(parseJsonField<PopUpPanel[]>(req.body.popUpPanels, []))
+    const popUpPanelStyle = normalizePopUpPanelStyle(
+      parseJsonField<Partial<PopUpPanelStyle>>(req.body.popUpPanelStyle, undefined),
+    )
     const spreadView = req.body.spreadView === 'true' || req.body.spreadView === true
     const branding = normalizeBranding(
       parseJsonField<Partial<BrandingConfig>>(req.body.branding, DEFAULT_BRANDING),
@@ -493,6 +498,7 @@ app.post('/api/flipbooks', upload.single('pdf'), async (req, res) => {
       tableOfContents,
       linkHotspots,
       popUpPanels,
+      popUpPanelStyle,
       spreadView,
       branding,
       monetization,
@@ -664,6 +670,7 @@ app.patch('/api/flipbooks/:id', async (req, res) => {
     tableOfContents,
     linkHotspots,
     popUpPanels,
+    popUpPanelStyle,
     spreadView,
     branding,
     monetization,
@@ -678,6 +685,7 @@ app.patch('/api/flipbooks/:id', async (req, res) => {
     tableOfContents?: TocEntry[]
     linkHotspots?: LinkHotspot[]
     popUpPanels?: PopUpPanel[]
+    popUpPanelStyle?: Partial<PopUpPanelStyle>
     spreadView?: boolean
     branding?: Partial<BrandingConfig>
     monetization?: Partial<MonetizationConfig>
@@ -720,6 +728,10 @@ app.patch('/api/flipbooks/:id', async (req, res) => {
       return
     }
     meta.popUpPanels = normalizePopUpPanels(popUpPanels)
+  }
+
+  if (popUpPanelStyle !== undefined) {
+    meta.popUpPanelStyle = normalizePopUpPanelStyle(popUpPanelStyle)
   }
 
   if (spreadView !== undefined) {

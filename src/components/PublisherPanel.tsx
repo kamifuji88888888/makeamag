@@ -1,8 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { AnalyticsSummary } from '../../shared/analytics'
-import type { BrandingConfig, CapturedLead, LeadCaptureConfig, LinkHotspot, MonetizationConfig, PopUpPanel, PopUpPanelKind, PublicationInfo, TocEntry } from '../../shared/flipbook'
-import { POP_UP_PANEL_KIND_DEFAULTS, POP_UP_PANEL_KIND_LABELS } from '../../shared/flipbook'
+import type { BrandingConfig, CapturedLead, LeadCaptureConfig, LinkHotspot, MonetizationConfig, PopUpPanel, PopUpPanelKind, PopUpPanelModalSize, PopUpPanelStyle, PopUpPanelTheme, PopUpPanelTriggerShape, PublicationInfo, TocEntry } from '../../shared/flipbook'
+import {
+  POP_UP_PANEL_KIND_DEFAULTS,
+  POP_UP_PANEL_KIND_LABELS,
+  POP_UP_PANEL_KIND_STYLE_DEFAULTS,
+  POP_UP_PANEL_THEME_LABELS,
+} from '../../shared/flipbook'
 import { fetchCapturedLeads, fetchFlipbookAnalytics } from '../lib/api'
 import { getDnsTarget, resolveLogoUrl } from '../lib/branding'
 import { createLinkHotspot } from '../lib/linkHotspotUtils'
@@ -18,6 +23,7 @@ interface PublisherPanelProps {
   tableOfContents: TocEntry[]
   linkHotspots: LinkHotspot[]
   popUpPanels: PopUpPanel[]
+  popUpPanelStyle: PopUpPanelStyle
   spreadView: boolean
   branding: BrandingConfig
   monetization: MonetizationConfig
@@ -29,6 +35,7 @@ interface PublisherPanelProps {
   onTableOfContentsChange: (entries: TocEntry[]) => void
   onLinkHotspotsChange: (hotspots: LinkHotspot[]) => void
   onPopUpPanelsChange: (panels: PopUpPanel[]) => void
+  onPopUpPanelStyleChange: (style: PopUpPanelStyle) => void
   onPanelPosition?: (panel: PopUpPanel) => void
   onSpreadViewChange: (spreadView: boolean) => void
   onBrandingChange: (branding: BrandingConfig) => void
@@ -54,6 +61,7 @@ export function PublisherPanel({
   tableOfContents,
   linkHotspots,
   popUpPanels,
+  popUpPanelStyle,
   spreadView,
   branding,
   monetization,
@@ -65,6 +73,7 @@ export function PublisherPanel({
   onTableOfContentsChange,
   onLinkHotspotsChange,
   onPopUpPanelsChange,
+  onPopUpPanelStyleChange,
   onPanelPosition,
   onSpreadViewChange,
   onBrandingChange,
@@ -90,6 +99,15 @@ export function PublisherPanel({
   const [linkError, setLinkError] = useState('')
   const [panelPage, setPanelPage] = useState(0)
   const [panelKind, setPanelKind] = useState<PopUpPanelKind>('footnote')
+  const [panelTheme, setPanelTheme] = useState<PopUpPanelTheme>(
+    POP_UP_PANEL_KIND_STYLE_DEFAULTS.footnote.theme!,
+  )
+  const [panelTriggerShape, setPanelTriggerShape] = useState<PopUpPanelTriggerShape>(
+    POP_UP_PANEL_KIND_STYLE_DEFAULTS.footnote.triggerShape!,
+  )
+  const [panelModalSize, setPanelModalSize] = useState<PopUpPanelModalSize>(
+    POP_UP_PANEL_KIND_STYLE_DEFAULTS.footnote.modalSize!,
+  )
   const [panelTriggerLabel, setPanelTriggerLabel] = useState('')
   const [panelTitle, setPanelTitle] = useState('')
   const [panelBody, setPanelBody] = useState('')
@@ -140,6 +158,11 @@ export function PublisherPanel({
       panelTriggerLabel,
       panelTitle,
       panelBody,
+      {
+        theme: panelTheme,
+        triggerShape: panelTriggerShape,
+        modalSize: panelModalSize,
+      },
     )
     if (!panel) {
       setPanelError('Enter panel content')
@@ -154,8 +177,24 @@ export function PublisherPanel({
   function updatePanelKind(kind: PopUpPanelKind) {
     setPanelKind(kind)
     const defaults = POP_UP_PANEL_KIND_DEFAULTS[kind]
+    const styleDefaults = POP_UP_PANEL_KIND_STYLE_DEFAULTS[kind]
     setPanelTriggerLabel(defaults.triggerLabel)
     setPanelTitle(defaults.title)
+    if (styleDefaults.theme) setPanelTheme(styleDefaults.theme)
+    if (styleDefaults.triggerShape) setPanelTriggerShape(styleDefaults.triggerShape)
+    if (styleDefaults.modalSize) setPanelModalSize(styleDefaults.modalSize)
+  }
+
+  function updatePopUpPanelStyle(patch: Partial<PopUpPanelStyle>) {
+    onPopUpPanelStyleChange({ ...popUpPanelStyle, ...patch })
+  }
+
+  const themeSwatches: Record<PopUpPanelTheme, string> = {
+    brand: branding.accentColor || '#0071e3',
+    violet: '#7c3aed',
+    slate: '#475569',
+    amber: '#d97706',
+    emerald: '#059669',
   }
 
   function updateBranding(patch: Partial<BrandingConfig>) {
@@ -471,6 +510,76 @@ export function PublisherPanel({
                 Use Move &amp; resize mode to position the trigger button.
               </p>
 
+              <div className="space-y-4 rounded-xl border border-apple-border-light p-4">
+                <div>
+                  <p className="text-sm font-medium text-apple-text">Publication defaults</p>
+                  <p className="mt-1 text-xs text-apple-muted">
+                    Fallback style for panels without custom colors or shapes.
+                  </p>
+                </div>
+
+                <div>
+                  <p className="mb-2 text-xs font-medium uppercase tracking-wide text-apple-muted">Color theme</p>
+                  <div className="flex flex-wrap gap-2">
+                    {(Object.keys(POP_UP_PANEL_THEME_LABELS) as PopUpPanelTheme[]).map((theme) => (
+                      <button
+                        key={theme}
+                        type="button"
+                        onClick={() => updatePopUpPanelStyle({ theme })}
+                        className={[
+                          'flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition',
+                          popUpPanelStyle.theme === theme
+                            ? 'border-apple-blue bg-apple-blue/8 text-apple-blue'
+                            : 'border-apple-border-light text-apple-text hover:border-apple-blue/30',
+                        ].join(' ')}
+                      >
+                        <span
+                          className="h-3 w-3 rounded-full ring-1 ring-black/10"
+                          style={{ backgroundColor: themeSwatches[theme] }}
+                        />
+                        {POP_UP_PANEL_THEME_LABELS[theme]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label htmlFor="panel-default-shape" className="mb-2 block text-xs font-medium uppercase tracking-wide text-apple-muted">
+                      Trigger shape
+                    </label>
+                    <select
+                      id="panel-default-shape"
+                      value={popUpPanelStyle.triggerShape}
+                      onChange={(e) =>
+                        updatePopUpPanelStyle({ triggerShape: e.target.value as PopUpPanelTriggerShape })
+                      }
+                      className="apple-input"
+                    >
+                      <option value="pill">Pill</option>
+                      <option value="circle">Circle</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label htmlFor="panel-default-modal" className="mb-2 block text-xs font-medium uppercase tracking-wide text-apple-muted">
+                      Modal width
+                    </label>
+                    <select
+                      id="panel-default-modal"
+                      value={popUpPanelStyle.modalSize}
+                      onChange={(e) =>
+                        updatePopUpPanelStyle({ modalSize: e.target.value as PopUpPanelModalSize })
+                      }
+                      className="apple-input"
+                    >
+                      <option value="narrow">Narrow</option>
+                      <option value="standard">Standard</option>
+                      <option value="wide">Wide</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
               {popUpPanels.length > 0 && (
                 <ul className="max-h-40 space-y-1 overflow-y-auto rounded-xl border border-apple-border-light p-2">
                   {popUpPanels.map((panel) => (
@@ -548,6 +657,39 @@ export function PublisherPanel({
                   rows={4}
                   className="apple-input resize-none"
                 />
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <select
+                    value={panelTheme}
+                    onChange={(e) => setPanelTheme(e.target.value as PopUpPanelTheme)}
+                    className="apple-input"
+                    aria-label="Panel color theme"
+                  >
+                    {(Object.keys(POP_UP_PANEL_THEME_LABELS) as PopUpPanelTheme[]).map((theme) => (
+                      <option key={theme} value={theme}>
+                        {POP_UP_PANEL_THEME_LABELS[theme]}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={panelTriggerShape}
+                    onChange={(e) => setPanelTriggerShape(e.target.value as PopUpPanelTriggerShape)}
+                    className="apple-input"
+                    aria-label="Trigger shape"
+                  >
+                    <option value="pill">Pill trigger</option>
+                    <option value="circle">Circle trigger</option>
+                  </select>
+                  <select
+                    value={panelModalSize}
+                    onChange={(e) => setPanelModalSize(e.target.value as PopUpPanelModalSize)}
+                    className="apple-input"
+                    aria-label="Modal width"
+                  >
+                    <option value="narrow">Narrow modal</option>
+                    <option value="standard">Standard modal</option>
+                    <option value="wide">Wide modal</option>
+                  </select>
+                </div>
                 {panelError && <p className="text-sm text-red-500">{panelError}</p>}
                 <button type="button" onClick={addPanel} className="apple-btn-secondary w-full">
                   Add panel
