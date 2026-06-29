@@ -803,6 +803,36 @@ app.get('/api/admin/metrics', async (req, res) => {
   }
 })
 
+app.post('/api/admin/set-password', async (req, res) => {
+  if (!isAdminAuthorized(req.headers.authorization, process.env.ADMIN_SECRET)) {
+    res.status(401).json({ error: 'Unauthorized' })
+    return
+  }
+
+  try {
+    const { email, password } = req.body as { email?: string; password?: string }
+    if (!email?.trim() || !email.includes('@')) {
+      res.status(400).json({ error: 'A valid email address is required' })
+      return
+    }
+    if (!password || password.length < 8) {
+      res.status(400).json({ error: 'Password must be at least 8 characters' })
+      return
+    }
+
+    const user = await users.updatePassword(email.trim(), password)
+    if (!user) {
+      res.status(404).json({ error: 'No account found for that email' })
+      return
+    }
+
+    res.json({ ok: true, email: user.email })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to set password'
+    res.status(500).json({ error: message })
+  }
+})
+
 app.get('/api/stripe/status', (_req, res) => {
   res.json({
     configured: isStripeConfigured(),

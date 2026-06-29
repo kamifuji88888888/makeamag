@@ -60,24 +60,42 @@ interface AuthEmailDelivery {
   devLink?: string
 }
 
+function htmlToPlainText(html: string): string {
+  return html
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<a [^>]*href="([^"]+)"[^>]*>[^<]*<\/a>/gi, '$1')
+    .replace(/<[^>]+>/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
 async function sendAuthHtmlEmail(to: string, subject: string, html: string): Promise<void> {
   const from = authFromAddress()
   if (!from) {
     throw new Error('AUTH_EMAIL_FROM is not configured.')
   }
 
+  const text = htmlToPlainText(html)
+
   if (isSesConfigured()) {
     try {
-      await getSesClient().send(
+      const result = await getSesClient().send(
         new SendEmailCommand({
           Source: from,
           Destination: { ToAddresses: [to] },
           Message: {
             Subject: { Data: subject, Charset: 'UTF-8' },
-            Body: { Html: { Data: html, Charset: 'UTF-8' } },
+            Body: {
+              Html: { Data: html, Charset: 'UTF-8' },
+              Text: { Data: text, Charset: 'UTF-8' },
+            },
           },
         }),
       )
+      if (process.env.NODE_ENV === 'production') {
+        console.log(`[auth] SES email sent to ${to} (messageId=${result.MessageId ?? 'unknown'})`)
+      }
     } catch (error) {
       throw new Error(formatAuthEmailError(error))
     }
@@ -96,6 +114,7 @@ async function sendAuthHtmlEmail(to: string, subject: string, html: string): Pro
         to,
         subject,
         html,
+        text,
       }),
     })
 
