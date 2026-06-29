@@ -67,16 +67,20 @@ async function sendAuthHtmlEmail(to: string, subject: string, html: string): Pro
   }
 
   if (isSesConfigured()) {
-    await getSesClient().send(
-      new SendEmailCommand({
-        Source: from,
-        Destination: { ToAddresses: [to] },
-        Message: {
-          Subject: { Data: subject, Charset: 'UTF-8' },
-          Body: { Html: { Data: html, Charset: 'UTF-8' } },
-        },
-      }),
-    )
+    try {
+      await getSesClient().send(
+        new SendEmailCommand({
+          Source: from,
+          Destination: { ToAddresses: [to] },
+          Message: {
+            Subject: { Data: subject, Charset: 'UTF-8' },
+            Body: { Html: { Data: html, Charset: 'UTF-8' } },
+          },
+        }),
+      )
+    } catch (error) {
+      throw new Error(formatAuthEmailError(error))
+    }
     return
   }
 
@@ -105,6 +109,17 @@ async function sendAuthHtmlEmail(to: string, subject: string, html: string): Pro
   throw new Error(
     'Email is not configured. Set AUTH_EMAIL_FROM and AWS credentials for Amazon SES.',
   )
+}
+
+function formatAuthEmailError(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error)
+  if (/not verified|MessageRejected|sandbox/i.test(message)) {
+    return (
+      'We could not deliver email to this address yet. On the sign-in page, try "Email me a sign-in link" instead, ' +
+      'or contact support@makeamag.com for help.'
+    )
+  }
+  return message || 'Failed to send email'
 }
 
 function handleUnconfiguredEmail(link: string, email: string, label: string): AuthEmailDelivery {

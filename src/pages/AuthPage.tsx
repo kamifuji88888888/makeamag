@@ -247,7 +247,28 @@ export function AuthPage() {
                   )}
 
                   {error && (
-                    <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>
+                    <div className="space-y-2">
+                      <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>
+                      {mode === 'signin' &&
+                        error.toLowerCase().includes('incorrect') &&
+                        magicLinkEnabled && (
+                          <p className="text-sm text-apple-muted">
+                            Signed up with an email link?{' '}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setMode('magic')
+                                setError(null)
+                                setPassword('')
+                              }}
+                              className="apple-link"
+                            >
+                              Email me a sign-in link
+                            </button>{' '}
+                            instead.
+                          </p>
+                        )}
+                    </div>
                   )}
 
                   <button

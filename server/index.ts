@@ -345,7 +345,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
 
     const normalized = email.trim().toLowerCase()
     const user = await users.findByEmail(normalized)
-    if (user?.passwordHash) {
+    if (user) {
       const token = createPasswordResetToken(normalized)
       const delivery = await sendPasswordResetEmail(normalized, token)
       res.json({
@@ -356,7 +356,8 @@ app.post('/api/auth/forgot-password', async (req, res) => {
       return
     }
 
-    res.json({ ok: true, delivered: false })
+    // Do not reveal whether the account exists.
+    res.json({ ok: true, delivered: true })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to send password reset email'
     res.status(500).json({ error: message })

@@ -116,17 +116,26 @@ export function ForgotPasswordPage() {
                 <p className="mt-3 text-[0.9375rem] leading-relaxed text-apple-muted">
                   {delivered ? (
                     <>
-                      We sent password reset instructions to{' '}
-                      <span className="font-medium text-apple-text">{email}</span>.
+                      If an account exists for{' '}
+                      <span className="font-medium text-apple-text">{email}</span>, we sent password
+                      reset instructions. Check your inbox and spam folder.
                     </>
                   ) : (
                     <>
-                      If an account exists for{' '}
-                      <span className="font-medium text-apple-text">{email}</span>, we could not
-                      deliver email right now.
+                      We couldn&apos;t deliver email to{' '}
+                      <span className="font-medium text-apple-text">{email}</span> right now.
                     </>
                   )}
                 </p>
+                {!delivered && (
+                  <p className="mt-3 rounded-xl bg-apple-gray px-4 py-3 text-sm text-apple-muted">
+                    Try signing in with{' '}
+                    <Link to="/auth" className="apple-link">
+                      Email me a sign-in link
+                    </Link>{' '}
+                    instead. If you originally signed up that way, you may not have a password yet.
+                  </p>
+                )}
                 <p className="mt-3 text-sm text-apple-muted">
                   Need help? Contact{' '}
                   <a href={`mailto:${SUPPORT_EMAIL}`} className="apple-link">
