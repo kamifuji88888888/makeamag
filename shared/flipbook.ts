@@ -17,6 +17,7 @@ export interface PublicationInfo {
   title: string
   publisherName: string
   issueLabel: string
+  description: string
 }
 
 export interface TocEntry {
@@ -134,6 +135,7 @@ export const DEFAULT_PUBLICATION: PublicationInfo = {
   title: '',
   publisherName: '',
   issueLabel: '',
+  description: '',
 }
 
 export const DEFAULT_BRANDING: BrandingConfig = {
@@ -422,6 +424,7 @@ export function normalizePublication(publication?: Partial<PublicationInfo>): Pu
     title: publication?.title?.trim() ?? '',
     publisherName: publication?.publisherName?.trim() ?? '',
     issueLabel: publication?.issueLabel?.trim() ?? '',
+    description: publication?.description?.trim() ?? '',
   }
 }
 
@@ -447,4 +450,20 @@ export function toPublicMeta(meta: FlipbookStoredMeta): FlipbookPublicMeta {
 
 export function displayTitle(meta: Pick<FlipbookPublicMeta, 'fileName' | 'publication'>): string {
   return meta.publication.title || meta.fileName.replace(/\.pdf$/i, '')
+}
+
+export function displayDescription(
+  meta: Pick<FlipbookPublicMeta, 'fileName' | 'publication'>,
+): string {
+  if (meta.publication.description.trim()) {
+    return meta.publication.description.trim()
+  }
+
+  const title = displayTitle(meta)
+  const parts = [title, meta.publication.publisherName, meta.publication.issueLabel].filter(Boolean)
+  if (parts.length > 1) {
+    return parts.join(' — ')
+  }
+
+  return `${title} — interactive flipbook`
 }

@@ -158,7 +158,7 @@ export interface PublishedFlipbookSummary {
   id: string
   fileName: string
   createdAt: string
-  publication: { title: string; publisherName: string; issueLabel: string }
+  publication: { title: string; publisherName: string; issueLabel: string; description?: string }
   isPasswordProtected: boolean
 }
 

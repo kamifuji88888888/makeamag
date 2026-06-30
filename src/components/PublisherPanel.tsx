@@ -9,16 +9,19 @@ import {
   POP_UP_PANEL_THEME_LABELS,
 } from '../../shared/flipbook'
 import { fetchCapturedLeads, fetchFlipbookAnalytics } from '../lib/api'
+import { analyzePublication } from '../lib/aiApi'
 import { getDnsTarget, resolveLogoUrl } from '../lib/branding'
 import { createLinkHotspot } from '../lib/linkHotspotUtils'
 import { createPopUpPanel } from '../lib/popUpPanelUtils'
 import { AnalyticsDashboard } from './AnalyticsDashboard'
+import { AiSuggestionsTab } from './AiSuggestionsTab'
 
-type Tab = 'details' | 'contents' | 'links' | 'panels' | 'branding' | 'monetize' | 'leads' | 'analytics'
+type Tab = 'ai' | 'details' | 'contents' | 'links' | 'panels' | 'branding' | 'monetize' | 'leads' | 'analytics'
 
 interface PublisherPanelProps {
   fileName: string
   totalPages: number
+  pageTexts?: string[]
   publication: PublicationInfo
   tableOfContents: TocEntry[]
   linkHotspots: LinkHotspot[]
@@ -57,6 +60,7 @@ interface PublisherPanelProps {
 export function PublisherPanel({
   fileName,
   totalPages,
+  pageTexts = [],
   publication,
   tableOfContents,
   linkHotspots,
@@ -92,7 +96,8 @@ export function PublisherPanel({
   onStripeConnect,
 }: PublisherPanelProps) {
   const [stripeConnecting, setStripeConnecting] = useState(false)
-  const [tab, setTab] = useState<Tab>('details')
+  const [tab, setTab] = useState<Tab>('ai')
+  const [descriptionGenerating, setDescriptionGenerating] = useState(false)
   const [linkPage, setLinkPage] = useState(0)
   const [linkUrl, setLinkUrl] = useState('')
   const [linkLabel, setLinkLabel] = useState('')
@@ -127,6 +132,26 @@ export function PublisherPanel({
 
   function updatePublication(patch: Partial<PublicationInfo>) {
     onPublicationChange({ ...publication, ...patch })
+  }
+
+  async function generateDescription() {
+    if (pageTexts.length === 0) return
+    setDescriptionGenerating(true)
+    try {
+      const pages = pageTexts
+        .map((text, pageIndex) => ({ pageIndex, text: text.trim() }))
+        .filter((page) => page.text.length > 0)
+      const result = await analyzePublication({
+        fileName,
+        pages,
+        existingTocCount: tableOfContents.length,
+      })
+      if (result.publication.description) {
+        updatePublication({ description: result.publication.description })
+      }
+    } finally {
+      setDescriptionGenerating(false)
+    }
   }
 
   function addTocEntry() {
@@ -220,6 +245,7 @@ export function PublisherPanel({
   }
 
   const tabs: { id: Tab; label: string }[] = [
+    { id: 'ai', label: 'AI' },
     { id: 'details', label: 'Details' },
     { id: 'contents', label: 'Contents' },
     { id: 'links', label: 'Links' },
@@ -321,6 +347,17 @@ export function PublisherPanel({
         </div>
 
         <div className="flex-1 space-y-4 overflow-y-auto px-6 py-6">
+          {tab === 'ai' && (
+            <AiSuggestionsTab
+              fileName={fileName}
+              pageTexts={pageTexts}
+              publication={publication}
+              tableOfContents={tableOfContents}
+              onPublicationChange={onPublicationChange}
+              onTableOfContentsChange={onTableOfContentsChange}
+            />
+          )}
+
           {tab === 'details' && (
             <>
               <div>
@@ -358,6 +395,43 @@ export function PublisherPanel({
                   placeholder="Vol. 12 · Spring 2026"
                   className="apple-input"
                 />
+              </div>
+              <div>
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <label htmlFor="pub-description" className="block text-sm text-apple-muted">
+                    Description
+                  </label>
+                  {pageTexts.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => void generateDescription()}
+                      disabled={descriptionGenerating}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-xs font-medium text-violet-700 transition hover:bg-violet-100 disabled:opacity-60"
+                    >
+                      <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 0 0-2.455 2.456Z"
+                        />
+                      </svg>
+                      {descriptionGenerating ? 'Generating…' : 'Generate with AI'}
+                    </button>
+                  )}
+                </div>
+                <textarea
+                  id="pub-description"
+                  value={publication.description}
+                  onChange={(e) => updatePublication({ description: e.target.value })}
+                  placeholder="Short summary for search engines and social link previews"
+                  rows={4}
+                  maxLength={320}
+                  className="apple-input resize-none"
+                />
+                <p className="mt-2 text-xs text-apple-muted">
+                  Used when your flipbook is shared on Google, social media, and messaging apps.
+                  {publication.description ? ` ${publication.description.length}/320 characters` : ''}
+                </p>
               </div>
               <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-apple-border-light px-4 py-3">
                 <input

@@ -64,6 +64,13 @@ import {
   isPlanOverrideEmail,
   planOverrideEmails,
 } from './founderAccess.js'
+import { aiProvider, analyzePublication } from './ai.js'
+import type { AiAnalyzeRequest } from '../shared/ai.js'
+import {
+  buildShareMetaTags,
+  injectShareMetaHtml,
+  readIndexHtml,
+} from './shareMeta.js'
 import {
   createReaderCheckoutSession,
   createStripeConnectLink,
@@ -230,6 +237,24 @@ app.get('/api/auth/config', (_req, res) => {
     passwordResetEnabled: isAuthEmailEnabled(),
     emailProvider: authEmailProvider(),
   })
+})
+
+app.get('/api/ai/config', (_req, res) => {
+  res.json({
+    enabled: true,
+    provider: aiProvider(),
+  })
+})
+
+app.post('/api/ai/analyze-publication', async (req, res) => {
+  try {
+    const body = req.body as AiAnalyzeRequest
+    const result = await analyzePublication(body)
+    res.json(result)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to analyze publication'
+    res.status(400).json({ error: message })
+  }
 })
 
 app.post('/api/auth/signup', async (req, res) => {
@@ -1132,6 +1157,60 @@ app.get('/api/health', (_req, res) => {
 
 if (isProduction) {
   const distPath = path.join(__dirname, '..', 'dist')
+  let indexHtmlTemplate = ''
+
+  void readIndexHtml(distPath)
+    .then((html) => {
+      indexHtmlTemplate = html
+    })
+    .catch((error) => {
+      console.error('[share-meta] Failed to read index.html:', error)
+    })
+
+  async function serveFlipbookShell(
+    req: express.Request,
+    res: express.Response,
+    route: 'view' | 'embed',
+  ) {
+    const flipbookId = req.params.id
+    if (!flipbookId) {
+      res.sendFile(path.join(distPath, 'index.html'))
+      return
+    }
+
+    try {
+      const meta = await storage.loadMeta(flipbookId)
+      if (meta && indexHtmlTemplate) {
+        const configuredOrigin = (process.env.SERVER_URL ?? process.env.CLIENT_URL ?? '').replace(
+          /\/$/,
+          '',
+        )
+        const siteOrigin = configuredOrigin || `${req.protocol}://${req.get('host')}`
+        const metaTags = buildShareMetaTags(
+          { ...meta, publication: normalizePublication(meta.publication) },
+          {
+            canonicalUrl: `${siteOrigin}/${route}/${flipbookId}`,
+            siteOrigin,
+          },
+        )
+        res.type('html').send(injectShareMetaHtml(indexHtmlTemplate, metaTags))
+        return
+      }
+    } catch {
+      // Fall through to the SPA shell.
+    }
+
+    res.sendFile(path.join(distPath, 'index.html'))
+  }
+
+  app.get('/view/:id', (req, res) => {
+    void serveFlipbookShell(req, res, 'view')
+  })
+
+  app.get('/embed/:id', (req, res) => {
+    void serveFlipbookShell(req, res, 'embed')
+  })
+
   app.use(
     express.static(distPath, {
       setHeaders(res, filePath) {

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { PublicationInfo } from '../../shared/flipbook'
-import { displayTitle } from '../../shared/flipbook'
+import { displayDescription, displayTitle } from '../../shared/flipbook'
 import { getSharePageUrl } from '../lib/api'
 import type { BrandingConfig } from '../../shared/flipbook'
 import {
@@ -37,9 +37,10 @@ export function SocialShareDialog({
   const [message, setMessage] = useState('')
 
   const title = displayTitle({ fileName, publication })
+  const description = displayDescription({ fileName, publication })
   const defaultText = useMemo(
-    () => `Check out page ${pageIndex + 1} from ${title}`,
-    [pageIndex, title],
+    () => description || `Check out page ${pageIndex + 1} from ${title}`,
+    [description, pageIndex, title],
   )
 
   const pageUrl = flipbookId

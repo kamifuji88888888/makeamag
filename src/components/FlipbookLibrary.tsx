@@ -323,6 +323,7 @@ export function FlipbookLibrary({
                           title: '',
                           publisherName: '',
                           issueLabel: '',
+                          description: '',
                         },
                       })}
                     </p>

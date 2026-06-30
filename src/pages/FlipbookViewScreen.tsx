@@ -8,6 +8,7 @@ import { BrandedNav } from '../components/BrandedNav'
 import { brandingScopeStyle } from '../lib/branding'
 import { verifyStripeSession } from '../lib/api'
 import { displayTitle } from '../../shared/flipbook'
+import { useFlipbookDocumentMeta } from '../lib/flipbookDocumentMeta'
 
 interface FlipbookViewScreenProps {
   id: string | undefined
@@ -18,6 +19,15 @@ export function FlipbookViewScreen({ id, isCustomDomain = false }: FlipbookViewS
   const [searchParams, setSearchParams] = useSearchParams()
   const [stripeUnlocked, setStripeUnlocked] = useState(false)
   const { state, handleUnlock, handleMonetizationUnlock, handleLeadCaptureSubmit } = useFlipbookLoader(id)
+
+  useFlipbookDocumentMeta({
+    enabled: state.status === 'ready',
+    fileName: state.status === 'ready' ? state.fileName : '',
+    publication: state.status === 'ready' ? state.publication : { title: '', publisherName: '', issueLabel: '', description: '' },
+    flipbookId: id,
+    branding: state.status === 'ready' ? state.branding : undefined,
+    pagePath: id ? `/view/${id}` : undefined,
+  })
 
   useEffect(() => {
     const sessionId = searchParams.get('stripe_session')

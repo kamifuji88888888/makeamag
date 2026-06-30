@@ -749,12 +749,12 @@ export function EditorPage() {
             <section className="px-6 pb-12 pt-16 text-center md:pt-20">
               <div className="mx-auto max-w-[680px]">
                 <h1 className="apple-hero-title">
-                  <span className="block">Make Your Online Magazine!</span>
-                  <span className="block">In One Click!</span>
+                  <span className="block">The AI-assisted</span>
+                  <span className="block">magazine publisher</span>
                 </h1>
                 <p className="apple-hero-subtitle mx-auto mt-5 max-w-[580px]">
-                  Upload a brochure or magazine. Add videos, links, and a table of contents.
-                  Share a beautiful flipbook — anywhere.
+                  Upload a PDF and get smart suggestions for title, contents, and structure.
+                  Add videos, links, and panels — then share a beautiful flipbook anywhere.
                 </p>
               </div>
             </section>
@@ -770,9 +770,9 @@ export function EditorPage() {
             <section className="px-6 py-20">
               <div className="mx-auto grid max-w-[980px] gap-5 md:grid-cols-3">
                 {[
-                  { title: 'Upload', desc: 'Any multi-page PDF. Brochures, catalogs, magazines.' },
-                  { title: 'Publish', desc: 'Title, contents, link hotspots, and spread view for magazines.' },
-                  { title: 'Share', desc: 'Full-screen links, embeds, and password protection.' },
+                  { title: 'Upload', desc: 'Drop any multi-page PDF. Brochures, catalogs, magazines.' },
+                  { title: 'AI assist', desc: 'Get suggested title, issue label, and table of contents in seconds.' },
+                  { title: 'Publish & share', desc: 'Links, embeds, paywalls, lead capture, and custom domains.' },
                 ].map((feature) => (
                   <div key={feature.title} className="apple-card p-8 text-center md:text-left">
                     <h3 className="text-[1.25rem] font-semibold tracking-tight text-apple-text">

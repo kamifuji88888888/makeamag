@@ -5,6 +5,7 @@ import { FlipbookViewer } from '../components/FlipbookViewer'
 import { LoadingProgress } from '../components/LoadingProgress'
 import { PasswordGate } from '../components/PasswordGate'
 import { brandingScopeStyle } from '../lib/branding'
+import { useFlipbookDocumentMeta } from '../lib/flipbookDocumentMeta'
 import { verifyStripeSession } from '../lib/api'
 
 export function EmbedPage() {
@@ -14,6 +15,15 @@ export function EmbedPage() {
     searchParams.get('chrome') === '0' || searchParams.get('chrome') === 'false'
   const { state, handleUnlock, handleMonetizationUnlock, handleLeadCaptureSubmit } = useFlipbookLoader(id)
   const [stripeUnlocked, setStripeUnlocked] = useState(false)
+
+  useFlipbookDocumentMeta({
+    enabled: state.status === 'ready',
+    fileName: state.status === 'ready' ? state.fileName : '',
+    publication: state.status === 'ready' ? state.publication : { title: '', publisherName: '', issueLabel: '', description: '' },
+    flipbookId: id,
+    branding: state.status === 'ready' ? state.branding : undefined,
+    pagePath: id ? `/embed/${id}` : undefined,
+  })
 
   useEffect(() => {
     const sessionId = searchParams.get('stripe_session')

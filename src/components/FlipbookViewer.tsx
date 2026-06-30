@@ -844,6 +844,7 @@ export function FlipbookViewer({
         <PublisherPanel
           fileName={fileName}
           totalPages={images.length}
+          pageTexts={pageTexts}
           publication={publication}
           tableOfContents={tableOfContents}
           linkHotspots={linkHotspots}
