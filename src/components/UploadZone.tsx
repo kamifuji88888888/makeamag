@@ -104,7 +104,7 @@ export function UploadZone({ onFileSelect, disabled, maxUploadMb }: UploadZonePr
         Drop or Upload Your PDF Here
       </h3>
       <p className="mb-6 text-[1.0625rem] text-apple-muted">
-        or click to browse — brochures, magazines, catalogs
+        or click to browse — AI analyzes your PDF for title, description, and contents
       </p>
       <span className="inline-flex items-center rounded-full bg-apple-gray px-4 py-1.5 text-sm text-apple-muted">
         PDF only{maxUploadMb !== undefined ? ` · up to ${maxUploadMb} MB` : ''}

@@ -748,12 +748,22 @@ export function EditorPage() {
           <>
             <section className="px-6 pb-12 pt-16 text-center md:pt-20">
               <div className="mx-auto max-w-[680px]">
-                <h1 className="apple-hero-title">
+                <p className="inline-flex items-center gap-2 rounded-full border border-violet-200 bg-violet-50 px-4 py-1.5 text-sm font-medium text-violet-700">
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} aria-hidden>
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 0 0-2.455 2.456Z"
+                    />
+                  </svg>
+                  AI-assisted publishing
+                </p>
+                <h1 className="apple-hero-title mt-6">
                   <span className="block">The AI-assisted</span>
                   <span className="block">magazine publisher</span>
                 </h1>
                 <p className="apple-hero-subtitle mx-auto mt-5 max-w-[580px]">
-                  Upload a PDF and get smart suggestions for title, contents, and structure.
+                  Upload a PDF and AI suggests your title, SEO description, and table of contents.
                   Add videos, links, and panels — then share a beautiful flipbook anywhere.
                 </p>
               </div>
@@ -770,9 +780,15 @@ export function EditorPage() {
             <section className="px-6 py-20">
               <div className="mx-auto grid max-w-[980px] gap-5 md:grid-cols-3">
                 {[
-                  { title: 'Upload', desc: 'Drop any multi-page PDF. Brochures, catalogs, magazines.' },
-                  { title: 'AI assist', desc: 'Get suggested title, issue label, and table of contents in seconds.' },
-                  { title: 'Publish & share', desc: 'Links, embeds, paywalls, lead capture, and custom domains.' },
+                  { title: 'Upload', desc: 'Drop any multi-page PDF — brochures, catalogs, or magazines.' },
+                  {
+                    title: 'AI assist',
+                    desc: 'Get AI-suggested title, SEO description, issue label, and table of contents in seconds.',
+                  },
+                  {
+                    title: 'Publish & share',
+                    desc: 'Share links and embeds with rich previews. Paywalls, lead capture, and custom domains.',
+                  },
                 ].map((feature) => (
                   <div key={feature.title} className="apple-card p-8 text-center md:text-left">
                     <h3 className="text-[1.25rem] font-semibold tracking-tight text-apple-text">
@@ -788,7 +804,7 @@ export function EditorPage() {
               <div className="mx-auto max-w-[980px] text-center">
                 <p className="apple-section-label">What publishers say</p>
                 <h2 className="mt-3 text-[1.75rem] font-semibold tracking-tight text-apple-text">
-                  Built for real magazines
+                  AI-assisted publishing for real magazines
                 </h2>
               </div>
               <div className="mx-auto mt-10 grid max-w-[980px] gap-5 md:grid-cols-3">
