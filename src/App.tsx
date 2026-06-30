@@ -9,7 +9,10 @@ import { EmbedPage } from './pages/EmbedPage'
 import { FlipbookViewScreen } from './pages/FlipbookViewScreen'
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { PricingPage } from './pages/PricingPage'
+import { AccessibilityPage } from './pages/AccessibilityPage'
+import { DmcaPage } from './pages/DmcaPage'
 import { PrivacyPage } from './pages/PrivacyPage'
+import { ReportContentPage } from './pages/ReportContentPage'
 import { ResetPasswordPage } from './pages/ResetPasswordPage'
 import { TermsPage } from './pages/TermsPage'
 import { ViewPage } from './pages/ViewPage'
@@ -46,6 +49,9 @@ function App() {
             <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
             <Route path="/privacy" element={<PrivacyPage />} />
             <Route path="/terms" element={<TermsPage />} />
+            <Route path="/dmca" element={<DmcaPage />} />
+            <Route path="/report" element={<ReportContentPage />} />
+            <Route path="/accessibility" element={<AccessibilityPage />} />
             <Route path="/pricing" element={<PricingPage />} />
             <Route path="/admin" element={<AdminPage />} />
             <Route path="/view/:id" element={<ViewPage />} />

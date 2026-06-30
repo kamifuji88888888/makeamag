@@ -10,13 +10,22 @@ export function SiteFooter() {
         </p>
         <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm">
           <Link to="/privacy" className="apple-link">
-            Privacy Policy
+            Privacy
           </Link>
           <Link to="/terms" className="apple-link">
-            Terms of Service
+            Terms
+          </Link>
+          <Link to="/dmca" className="apple-link">
+            DMCA
+          </Link>
+          <Link to="/report" className="apple-link">
+            Report Content
+          </Link>
+          <Link to="/accessibility" className="apple-link">
+            Accessibility
           </Link>
           <a href={`mailto:${SUPPORT_EMAIL}`} className="apple-link">
-            {SUPPORT_EMAIL}
+            Contact
           </a>
         </div>
       </div>
