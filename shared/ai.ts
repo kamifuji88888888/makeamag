@@ -25,4 +25,10 @@ export interface AiAnalyzeRequest {
   fileName: string
   pages: AiPageSample[]
   existingTocCount?: number
+  publicationContext?: {
+    title?: string
+    publisherName?: string
+    issueLabel?: string
+  }
+  focus?: 'full' | 'description'
 }

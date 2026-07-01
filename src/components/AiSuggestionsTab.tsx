@@ -67,6 +67,11 @@ export function AiSuggestionsTab({
         fileName,
         pages,
         existingTocCount: tableOfContents.length,
+        publicationContext: {
+          title: publication.title,
+          publisherName: publication.publisherName,
+          issueLabel: publication.issueLabel,
+        },
       })
       setAnalysis(result)
       setProvider(result.provider)

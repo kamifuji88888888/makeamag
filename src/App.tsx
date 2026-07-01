@@ -10,6 +10,7 @@ import { FlipbookViewScreen } from './pages/FlipbookViewScreen'
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { PricingPage } from './pages/PricingPage'
 import { AccessibilityPage } from './pages/AccessibilityPage'
+import { ContentGuidelinesPage } from './pages/ContentGuidelinesPage'
 import { DmcaPage } from './pages/DmcaPage'
 import { PrivacyPage } from './pages/PrivacyPage'
 import { ReportContentPage } from './pages/ReportContentPage'
@@ -51,6 +52,7 @@ function App() {
             <Route path="/terms" element={<TermsPage />} />
             <Route path="/dmca" element={<DmcaPage />} />
             <Route path="/report" element={<ReportContentPage />} />
+            <Route path="/guidelines" element={<ContentGuidelinesPage />} />
             <Route path="/accessibility" element={<AccessibilityPage />} />
             <Route path="/pricing" element={<PricingPage />} />
             <Route path="/admin" element={<AdminPage />} />

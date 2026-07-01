@@ -98,6 +98,7 @@ export function PublisherPanel({
   const [stripeConnecting, setStripeConnecting] = useState(false)
   const [tab, setTab] = useState<Tab>('ai')
   const [descriptionGenerating, setDescriptionGenerating] = useState(false)
+  const [descriptionError, setDescriptionError] = useState<string | null>(null)
   const [linkPage, setLinkPage] = useState(0)
   const [linkUrl, setLinkUrl] = useState('')
   const [linkLabel, setLinkLabel] = useState('')
@@ -135,20 +136,36 @@ export function PublisherPanel({
   }
 
   async function generateDescription() {
-    if (pageTexts.length === 0) return
+    setDescriptionError(null)
     setDescriptionGenerating(true)
     try {
       const pages = pageTexts
         .map((text, pageIndex) => ({ pageIndex, text: text.trim() }))
         .filter((page) => page.text.length > 0)
+
       const result = await analyzePublication({
         fileName,
         pages,
         existingTocCount: tableOfContents.length,
+        publicationContext: {
+          title: publication.title,
+          publisherName: publication.publisherName,
+          issueLabel: publication.issueLabel,
+        },
+        focus: 'description',
       })
-      if (result.publication.description) {
-        updatePublication({ description: result.publication.description })
+
+      const description = result.publication.description?.trim()
+      if (!description) {
+        setDescriptionError(
+          'No description could be generated. Add a title or try a PDF with more extractable text.',
+        )
+        return
       }
+
+      updatePublication({ description })
+    } catch (err: unknown) {
+      setDescriptionError(err instanceof Error ? err.message : 'Could not generate description')
     } finally {
       setDescriptionGenerating(false)
     }
@@ -360,6 +377,17 @@ export function PublisherPanel({
 
           {tab === 'details' && (
             <>
+              <div className="rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-sm text-amber-950">
+                <p className="font-medium">Content guidelines</p>
+                <p className="mt-1 leading-relaxed text-amber-900/90">
+                  Only publish material you have the right to share. We may remove flipbooks that violate
+                  our{' '}
+                  <Link to="/guidelines" className="apple-link">
+                    content guidelines
+                  </Link>
+                  , including explicit or illegal content.
+                </p>
+              </div>
               <div>
                 <label htmlFor="pub-title" className="mb-2 block text-sm text-apple-muted">
                   Title
@@ -401,13 +429,12 @@ export function PublisherPanel({
                   <label htmlFor="pub-description" className="block text-sm text-apple-muted">
                     Description
                   </label>
-                  {pageTexts.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => void generateDescription()}
-                      disabled={descriptionGenerating}
-                      className="inline-flex items-center gap-1.5 rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-xs font-medium text-violet-700 transition hover:bg-violet-100 disabled:opacity-60"
-                    >
+                  <button
+                    type="button"
+                    onClick={() => void generateDescription()}
+                    disabled={descriptionGenerating}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-xs font-medium text-violet-700 transition hover:bg-violet-100 disabled:opacity-60"
+                  >
                       <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                         <path
                           strokeLinecap="round"
@@ -417,7 +444,6 @@ export function PublisherPanel({
                       </svg>
                       {descriptionGenerating ? 'Generating…' : 'Generate with AI'}
                     </button>
-                  )}
                 </div>
                 <textarea
                   id="pub-description"
@@ -432,6 +458,9 @@ export function PublisherPanel({
                   Used when your flipbook is shared on Google, social media, and messaging apps.
                   {publication.description ? ` ${publication.description.length}/320 characters` : ''}
                 </p>
+                {descriptionError && (
+                  <p className="mt-2 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{descriptionError}</p>
+                )}
               </div>
               <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-apple-border-light px-4 py-3">
                 <input

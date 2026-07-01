@@ -20,7 +20,7 @@ export function ReportContentPage() {
           <li>Content that is illegal, abusive, harassing, or threatening</li>
           <li>Content that appears to impersonate another person or organization</li>
           <li>Malware, phishing, or deceptive links embedded in a flipbook</li>
-          <li>Other violations of our <Link to="/terms" className="apple-link">Terms of Service</Link></li>
+          <li>Other violations of our <Link to="/terms" className="apple-link">Terms of Service</Link> or <Link to="/guidelines" className="apple-link">Content Guidelines</Link></li>
         </ul>
       </section>
 

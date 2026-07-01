@@ -21,6 +21,9 @@ export function SiteFooter() {
           <Link to="/report" className="apple-link">
             Report Content
           </Link>
+          <Link to="/guidelines" className="apple-link">
+            Guidelines
+          </Link>
           <Link to="/accessibility" className="apple-link">
             Accessibility
           </Link>

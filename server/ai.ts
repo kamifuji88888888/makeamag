@@ -120,14 +120,41 @@ function extractIssueLabel(text: string): string {
 function extractDescription(pages: AiPageSample[]): string {
   for (const page of pages) {
     const text = page.text.replace(/\s+/g, ' ').trim()
-    if (text.length < 40) continue
-    const sentence = text.split(/(?<=[.!?])\s+/).find((part) => part.length >= 40)
+    if (text.length < 15) continue
+    const sentence = text.split(/(?<=[.!?])\s+/).find((part) => part.length >= 20)
     if (sentence) {
-      return sentence.slice(0, 220).trim()
+      return sentence.slice(0, 320).trim()
     }
-    return text.slice(0, 220).trim()
+    return text.slice(0, 320).trim()
   }
   return ''
+}
+
+function buildDescriptionFallback(request: AiAnalyzeRequest, pages: AiPageSample[]): string {
+  const fromPages = extractDescription(pages.length > 0 ? pages : [])
+  if (fromPages) return fromPages
+
+  const context = request.publicationContext
+  const title =
+    context?.title?.trim() ||
+    extractCoverTitle(pages[0]?.text ?? '', baseTitleFromFileName(request.fileName))
+  const publisher = context?.publisherName?.trim()
+  const issue = context?.issueLabel?.trim()
+  const coverSnippet = pages[0]?.text.replace(/\s+/g, ' ').trim().slice(0, 120)
+
+  const parts = [title, publisher, issue].filter(Boolean)
+  if (parts.length >= 2) {
+    return `${parts.join(' — ')}. Explore the full interactive flipbook on MakeAMag.`.slice(0, 320)
+  }
+  if (title) {
+    const detail = coverSnippet && coverSnippet !== title ? ` Featuring ${coverSnippet}.` : ''
+    return `${title}.${detail} Read the full issue online.`.slice(0, 320).trim()
+  }
+
+  return `Explore ${baseTitleFromFileName(request.fileName)} — an interactive digital publication.`.slice(
+    0,
+    320,
+  )
 }
 
 function looksLikeHeading(line: string): boolean {
@@ -187,9 +214,9 @@ function heuristicAnalyze(request: AiAnalyzeRequest): AiAnalysisResult {
 
   const publication: AiPublicationSuggestion = {
     title: extractCoverTitle(coverText, fallbackTitle),
-    publisherName: extractPublisher(earlyText),
-    issueLabel: extractIssueLabel(coverText + ' ' + earlyText),
-    description: extractDescription(pages.slice(1, 5)),
+    publisherName: extractPublisher(earlyText) || request.publicationContext?.publisherName?.trim() || '',
+    issueLabel: extractIssueLabel(coverText + ' ' + earlyText) || request.publicationContext?.issueLabel?.trim() || '',
+    description: buildDescriptionFallback(request, pages),
   }
 
   const tableOfContents =
@@ -209,22 +236,41 @@ function buildPrompt(request: AiAnalyzeRequest, pages: AiPageSample[]): string {
 
   return [
     'You analyze magazine, catalog, and brochure PDFs for a digital publishing platform.',
-    'Return JSON only with this shape:',
-    '{',
-    '  "title": string,',
-    '  "publisherName": string,',
-    '  "issueLabel": string,',
-    '  "description": string (1-2 sentences for sharing),',
-    '  "tableOfContents": [{ "title": string, "pageIndex": number }] ',
-    '}',
+    request.focus === 'description'
+      ? 'Write a compelling 1-2 sentence SEO description (max 320 characters) for search engines and social sharing.'
+      : 'Return JSON only with this shape:',
+    request.focus === 'description'
+      ? 'Return JSON: { "description": string }'
+      : '{',
+    ...(request.focus === 'description'
+      ? []
+      : [
+          '  "title": string,',
+          '  "publisherName": string,',
+          '  "issueLabel": string,',
+          '  "description": string (1-2 sentences for sharing),',
+          '  "tableOfContents": [{ "title": string, "pageIndex": number }] ',
+          '}',
+        ]),
     'Use zero-based pageIndex values that match the provided page numbers minus one.',
     'Suggest 4-12 TOC entries for major sections when the PDF lacks a clear contents page.',
     'If existing TOC count is 3 or more, return an empty tableOfContents array.',
     `File name: ${request.fileName}`,
     `Existing TOC entries: ${request.existingTocCount ?? 0}`,
+    request.publicationContext?.title
+      ? `Known title: ${request.publicationContext.title}`
+      : '',
+    request.publicationContext?.publisherName
+      ? `Known publisher: ${request.publicationContext.publisherName}`
+      : '',
+    request.publicationContext?.issueLabel
+      ? `Known issue: ${request.publicationContext.issueLabel}`
+      : '',
     '',
-    pageBlocks,
-  ].join('\n')
+    pageBlocks.length > 0 ? pageBlocks : 'No extractable page text was available. Use the known metadata and file name.',
+  ]
+    .filter(Boolean)
+    .join('\n')
 }
 
 async function openAiAnalyze(request: AiAnalyzeRequest): Promise<AiAnalysisResult> {
@@ -311,7 +357,9 @@ async function openAiAnalyze(request: AiAnalyzeRequest): Promise<AiAnalysisResul
         String(parsed.publisherName ?? '').trim() || fallback.publication.publisherName,
       issueLabel: String(parsed.issueLabel ?? '').trim() || fallback.publication.issueLabel,
       description:
-        String(parsed.description ?? '').trim() || fallback.publication.description,
+        String(parsed.description ?? '').trim() ||
+        fallback.publication.description ||
+        buildDescriptionFallback(request, pages),
     },
     tableOfContents:
       (request.existingTocCount ?? 0) >= 3 ? [] : tableOfContents,
@@ -322,18 +370,31 @@ export async function analyzePublication(request: AiAnalyzeRequest): Promise<AiA
   if (!request.fileName?.trim()) {
     throw new Error('fileName is required')
   }
-  if (!Array.isArray(request.pages) || request.pages.length === 0) {
-    throw new Error('At least one page sample is required')
+
+  const hasPages = Array.isArray(request.pages) && request.pages.some((page) => page.text.trim())
+  const hasContext = Boolean(
+    request.publicationContext?.title?.trim() ||
+      request.publicationContext?.publisherName?.trim() ||
+      request.publicationContext?.issueLabel?.trim(),
+  )
+
+  if (!hasPages && !hasContext) {
+    throw new Error('Add a title or upload a text-based PDF before generating a description.')
+  }
+
+  const normalizedRequest = {
+    ...request,
+    pages: hasPages ? request.pages : [],
   }
 
   if (isOpenAiConfigured()) {
     try {
-      return await openAiAnalyze(request)
+      return await openAiAnalyze(normalizedRequest)
     } catch (error) {
       console.error('[ai] OpenAI analysis failed, using heuristic fallback:', error)
-      return heuristicAnalyze(request)
+      return heuristicAnalyze(normalizedRequest)
     }
   }
 
-  return heuristicAnalyze(request)
+  return heuristicAnalyze(normalizedRequest)
 }

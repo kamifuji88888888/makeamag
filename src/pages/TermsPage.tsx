@@ -39,7 +39,11 @@ export function TermsPage() {
         </p>
         <p className="text-apple-muted">
           You represent that you have the rights to upload and publish your content and that it does
-          not violate any law or third-party rights.
+          not violate any law or third-party rights. See our{' '}
+          <a href="/guidelines" className="apple-link">
+            Content Guidelines
+          </a>{' '}
+          for additional detail.
         </p>
       </section>
 
