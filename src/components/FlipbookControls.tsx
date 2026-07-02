@@ -1,3 +1,5 @@
+import { PageNavigator } from './PageNavigator'
+
 interface FlipbookControlsProps {
   currentPage: number
   totalPages: number
@@ -7,6 +9,7 @@ interface FlipbookControlsProps {
   positionMode?: boolean
   onPrev: () => void
   onNext: () => void
+  onGoToPage: (pageIndex: number) => void
   onToggleSound: () => void
   onUploadNew?: () => void
   onFullscreen?: () => void
@@ -30,6 +33,7 @@ export function FlipbookControls({
   positionMode,
   onPrev,
   onNext,
+  onGoToPage,
   onToggleSound,
   onUploadNew,
   onFullscreen,
@@ -72,9 +76,12 @@ export function FlipbookControls({
         </svg>
       </button>
 
-      <span className="min-w-[4.5rem] px-1 text-center text-[0.8125rem] font-medium tabular-nums text-apple-muted">
-        {currentPage} / {totalPages}
-      </span>
+      <PageNavigator
+        currentPage={currentPage}
+        totalPages={totalPages}
+        compact={compact}
+        onGoToPage={onGoToPage}
+      />
 
       <button type="button" onClick={onNext} disabled={isLast} aria-label="Next page" className={iconBtn}>
         <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

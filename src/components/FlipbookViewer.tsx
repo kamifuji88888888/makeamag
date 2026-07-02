@@ -460,6 +460,13 @@ export function FlipbookViewer({
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        e.target instanceof HTMLSelectElement
+      ) {
+        return
+      }
+      if (
         showPositionPreview ||
         showVideoEditor ||
         showShareDialog ||
@@ -811,6 +818,7 @@ export function FlipbookViewer({
             hasContents={hasContents}
             onPrev={flipPrev}
             onNext={flipNext}
+            onGoToPage={goToPage}
             onToggleSound={() => setSoundEnabled((v) => !v)}
             onUploadNew={onUploadNew}
             onFullscreen={mode === 'editor' ? toggleFullscreen : undefined}
