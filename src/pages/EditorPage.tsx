@@ -10,6 +10,7 @@ import { planLimitMessage, sanitizeBrandingForPlan, sanitizeLeadCaptureForPlan, 
 import { getBillingAccountId } from '../lib/billingStorage'
 import type {
   BrandingConfig,
+  FlipbookVisibility,
   LeadCaptureConfig,
   LinkHotspot,
   MonetizationConfig,
@@ -19,7 +20,7 @@ import type {
   TocEntry,
   VideoEmbed,
 } from '../../shared/flipbook'
-import { DEFAULT_BRANDING, DEFAULT_LEAD_CAPTURE, DEFAULT_MONETIZATION, DEFAULT_POP_UP_PANEL_STYLE, DEFAULT_PUBLICATION, normalizeBranding, normalizeLeadCapture, normalizeMonetization, normalizePopUpPanelStyle, normalizePublication } from '../../shared/flipbook'
+import { DEFAULT_BRANDING, DEFAULT_LEAD_CAPTURE, DEFAULT_MONETIZATION, DEFAULT_POP_UP_PANEL_STYLE, DEFAULT_PUBLICATION, DEFAULT_VISIBILITY, normalizeBranding, normalizeLeadCapture, normalizeMonetization, normalizePopUpPanelStyle, normalizePublication, normalizeVisibility } from '../../shared/flipbook'
 import {
   deleteFlipbookLogo,
   fetchFlipbook,
@@ -83,6 +84,7 @@ type ReadyState = {
   hasSubscriberAccess: boolean
   subscriberAccessCode: string
   shareUrl: string | null
+  visibility: FlipbookVisibility
   isPasswordProtected: boolean
   publishPassword?: string
 }
@@ -115,6 +117,7 @@ function publisherPayload(state: ReadyState, planId: PlanId) {
     branding: sanitizeBrandingForPlan(state.branding, planId),
     monetization: sanitizeMonetizationForPlan(state.monetization, planId),
     leadCapture: sanitizeLeadCaptureForPlan(state.leadCapture, planId),
+    visibility: state.visibility,
     ...(state.subscriberAccessCode.trim()
       ? { subscriberAccessCode: state.subscriberAccessCode.trim() }
       : {}),
@@ -132,6 +135,7 @@ function libraryPublisherPatch(state: ReadyState) {
     branding: state.branding,
     monetization: state.monetization,
     leadCapture: state.leadCapture,
+    visibility: state.visibility,
   }
 }
 
@@ -283,6 +287,7 @@ export function EditorPage() {
           hasSubscriberAccess: false,
           subscriberAccessCode: '',
           shareUrl: null,
+          visibility: DEFAULT_VISIBILITY,
           isPasswordProtected: false,
         })
       } catch (error) {
@@ -339,6 +344,7 @@ export function EditorPage() {
             hasSubscriberAccess: false,
             subscriberAccessCode: '',
             shareUrl: null,
+            visibility: entry.visibility ?? DEFAULT_VISIBILITY,
             isPasswordProtected: false,
           })
         } else if (entry.flipbookId) {
@@ -370,6 +376,7 @@ export function EditorPage() {
             hasSubscriberAccess: meta.hasSubscriberAccess,
             subscriberAccessCode: '',
             shareUrl: getShareUrl(meta.id, meta.branding),
+            visibility: normalizeVisibility(meta.visibility),
             isPasswordProtected: meta.isPasswordProtected,
           })
         }
@@ -607,6 +614,25 @@ export function EditorPage() {
     [library, plan],
   )
 
+  const handleVisibilityChange = useCallback(
+    (visibility: FlipbookVisibility) => {
+      setState((prev) => {
+        if (prev.status !== 'ready') return prev
+
+        const next = { ...prev, visibility }
+
+        if (prev.flipbookId) {
+          void updateFlipbook(prev.flipbookId, { visibility }).catch(() => {})
+        }
+
+        library.bumpUpdated(prev.libraryEntryId, { visibility })
+
+        return next
+      })
+    },
+    [library],
+  )
+
   const handleShare = useCallback(
     async (password?: string) => {
       if (state.status !== 'ready') return
@@ -653,7 +679,7 @@ export function EditorPage() {
             fileName: meta.fileName,
             isPasswordProtected: meta.isPasswordProtected,
             pageCount: state.images.length,
-            ...libraryPublisherPatch(state),
+            ...libraryPublisherPatch({ ...state, visibility: normalizeVisibility(meta.visibility) }),
           })
           setState({
             ...state,
@@ -664,6 +690,7 @@ export function EditorPage() {
             subscriberAccessCode: '',
             shareUrl: getShareUrl(meta.id, meta.branding),
             isPasswordProtected: meta.isPasswordProtected,
+            visibility: normalizeVisibility(meta.visibility),
           })
         }
       } catch (error) {
@@ -877,6 +904,7 @@ export function EditorPage() {
               hasSubscriberAccess={state.hasSubscriberAccess}
               subscriberAccessCode={state.subscriberAccessCode}
               shareUrl={state.shareUrl}
+              visibility={state.visibility}
               isPasswordProtected={state.isPasswordProtected}
               isPublishing={isPublishing}
               onUploadNew={handleUploadNew}
@@ -896,6 +924,7 @@ export function EditorPage() {
               onLogoRemove={state.flipbookId ? handleLogoRemove : undefined}
               onImportOutline={handleImportOutline}
               onPasswordChange={handlePasswordChange}
+              onVisibilityChange={handleVisibilityChange}
               canPasswordProtect={plan.can('passwordProtection')}
               canVideoEmbeds={plan.can('videoEmbeds')}
               canAnalytics={plan.can('analytics')}

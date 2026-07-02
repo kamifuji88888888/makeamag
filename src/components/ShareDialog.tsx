@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { PasswordInput } from '../components/PasswordInput'
-import type { BrandingConfig, PublicationInfo } from '../../shared/flipbook'
+import type { BrandingConfig, FlipbookVisibility, PublicationInfo } from '../../shared/flipbook'
 import { displayTitle } from '../../shared/flipbook'
 import { getEmbedCode, getShareUrl } from '../lib/api'
+import { createQrCodeDataUrl, downloadDataUrl } from '../lib/qrCode'
 
 interface ShareDialogProps {
   shareUrl: string
@@ -11,10 +12,12 @@ interface ShareDialogProps {
   fileName: string
   publication: PublicationInfo
   branding: BrandingConfig
+  visibility: FlipbookVisibility
   isPasswordProtected: boolean
   canPasswordProtect?: boolean
   onClose: () => void
   onPasswordChange: (password: string, enabled: boolean) => void
+  onVisibilityChange: (visibility: FlipbookVisibility) => void
   onUpgradeRequest?: (feature: import('../../shared/plans').PlanFeature, label: string) => void
 }
 
@@ -24,17 +27,20 @@ export function ShareDialog({
   fileName,
   publication,
   branding,
+  visibility,
   isPasswordProtected,
   canPasswordProtect = true,
   onClose,
   onPasswordChange,
+  onVisibilityChange,
   onUpgradeRequest,
 }: ShareDialogProps) {
-  const [copied, setCopied] = useState<'link' | 'embed' | null>(null)
+  const [copied, setCopied] = useState<'link' | 'embed' | 'qr' | null>(null)
   const [passwordEnabled, setPasswordEnabled] = useState(isPasswordProtected)
   const [password, setPassword] = useState('')
   const [embedWidth, setEmbedWidth] = useState(800)
   const [embedHeight, setEmbedHeight] = useState(600)
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null)
 
   const shareUrl = useMemo(
     () => getShareUrl(flipbookId, branding) || initialShareUrl,
@@ -42,6 +48,7 @@ export function ShareDialog({
   )
 
   const embedTitle = displayTitle({ fileName, publication })
+  const qrFilename = `${embedTitle.replace(/[^\w.-]+/g, '-').toLowerCase()}-qr.png`
 
   const embedCode = getEmbedCode(flipbookId, {
     width: embedWidth,
@@ -49,6 +56,16 @@ export function ShareDialog({
     branding,
     title: embedTitle,
   })
+
+  useEffect(() => {
+    let cancelled = false
+    void createQrCodeDataUrl(shareUrl).then((dataUrl) => {
+      if (!cancelled) setQrDataUrl(dataUrl)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [shareUrl])
 
   async function handleCopyLink() {
     await navigator.clipboard.writeText(shareUrl)
@@ -60,6 +77,17 @@ export function ShareDialog({
     await navigator.clipboard.writeText(embedCode)
     setCopied('embed')
     setTimeout(() => setCopied(null), 2000)
+  }
+
+  async function handleCopyQrLink() {
+    await navigator.clipboard.writeText(shareUrl)
+    setCopied('qr')
+    setTimeout(() => setCopied(null), 2000)
+  }
+
+  function handleDownloadQr() {
+    if (!qrDataUrl) return
+    downloadDataUrl(qrDataUrl, qrFilename)
   }
 
   function handlePasswordToggle(enabled: boolean) {
@@ -86,7 +114,9 @@ export function ShareDialog({
         <div className="flex items-start justify-between border-b border-apple-border-light px-6 py-5">
           <div>
             <h3 className="text-[1.375rem] font-semibold tracking-tight text-apple-text">Share</h3>
-            <p className="mt-1 text-[1.0625rem] text-apple-muted">Link, embed, or protect with a password.</p>
+            <p className="mt-1 text-[1.0625rem] text-apple-muted">
+              Link, QR code, embed, or protect with a password.
+            </p>
           </div>
           <button
             type="button"
@@ -108,12 +138,77 @@ export function ShareDialog({
           )}
 
           <div>
+            <p className="apple-section-label mb-3">Who can find this</p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => onVisibilityChange('public')}
+                className={[
+                  'rounded-xl border px-4 py-3 text-left transition',
+                  visibility === 'public'
+                    ? 'border-apple-blue bg-apple-blue/8'
+                    : 'border-apple-border-light hover:bg-apple-gray',
+                ].join(' ')}
+              >
+                <span className="block text-sm font-medium text-apple-text">Public</span>
+                <span className="mt-1 block text-xs text-apple-muted">Shareable and indexable</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onVisibilityChange('unlisted')}
+                className={[
+                  'rounded-xl border px-4 py-3 text-left transition',
+                  visibility === 'unlisted'
+                    ? 'border-apple-blue bg-apple-blue/8'
+                    : 'border-apple-border-light hover:bg-apple-gray',
+                ].join(' ')}
+              >
+                <span className="block text-sm font-medium text-apple-text">Unlisted link</span>
+                <span className="mt-1 block text-xs text-apple-muted">Link only · hidden from search</span>
+              </button>
+            </div>
+          </div>
+
+          <div>
             <p className="apple-section-label mb-3">Full-screen link</p>
             <div className="flex gap-2">
               <input readOnly value={shareUrl} className="apple-input text-sm" />
               <button type="button" onClick={handleCopyLink} className="apple-btn-primary shrink-0">
                 {copied === 'link' ? 'Copied' : 'Copy'}
               </button>
+            </div>
+          </div>
+
+          <div>
+            <p className="apple-section-label mb-3">QR code</p>
+            <div className="flex flex-col items-center gap-4 rounded-xl border border-apple-border-light bg-apple-gray/40 p-5 sm:flex-row sm:items-start">
+              {qrDataUrl ? (
+                <img
+                  src={qrDataUrl}
+                  alt={`QR code for ${embedTitle}`}
+                  className="h-36 w-36 rounded-lg border border-apple-border-light bg-white p-2"
+                />
+              ) : (
+                <div className="flex h-36 w-36 items-center justify-center rounded-lg border border-apple-border-light bg-white text-xs text-apple-muted">
+                  Generating…
+                </div>
+              )}
+              <div className="flex w-full flex-1 flex-col gap-2">
+                <p className="text-sm text-apple-muted">
+                  Print or display this code so readers can open the issue on their phone.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleDownloadQr}
+                  disabled={!qrDataUrl}
+                  className="apple-btn-secondary"
+                >
+                  Download QR image
+                </button>
+                <button type="button" onClick={handleCopyQrLink} className="apple-btn-ghost text-sm">
+                  {copied === 'qr' ? 'Link copied' : 'Copy link instead'}
+                </button>
+              </div>
             </div>
           </div>
 

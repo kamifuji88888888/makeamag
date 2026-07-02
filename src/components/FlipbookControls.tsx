@@ -155,6 +155,12 @@ export function FlipbookControls({
         </button>
       )}
 
+      {(mode === 'shared' || mode === 'embed') && onOpenSocialShare && (
+        <button type="button" onClick={onOpenSocialShare} className="apple-btn-ghost">
+          Share
+        </button>
+      )}
+
       {mode === 'editor' && onShare && (
         <button
           type="button"

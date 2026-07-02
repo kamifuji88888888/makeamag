@@ -1,7 +1,7 @@
 import fs from 'fs/promises'
 import path from 'path'
 import type { FlipbookStoredMeta } from '../shared/flipbook.js'
-import { displayDescription, displayTitle } from '../shared/flipbook.js'
+import { displayDescription, displayTitle, shouldNoindexFlipbook, toPublicMeta } from '../shared/flipbook.js'
 import { SITE_NAME } from '../shared/site.js'
 
 function escapeHtml(value: string): string {
@@ -30,9 +30,12 @@ export function buildShareMetaTags(
   const imageUrl = meta.branding?.logoUrl
     ? `${options.siteOrigin}/api/flipbooks/${meta.id}/logo`
     : ''
+  const publicMeta = toPublicMeta(meta)
+  const noindex = shouldNoindexFlipbook(publicMeta)
 
   return [
     `<title>${escapeHtml(title)}</title>`,
+    noindex ? metaTag('name', 'robots', 'noindex, nofollow') : '',
     metaTag('name', 'description', description),
     metaTag('property', 'og:title', title),
     metaTag('property', 'og:description', description),

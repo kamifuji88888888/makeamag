@@ -118,7 +118,10 @@ export function ForgotPasswordPage() {
                     <>
                       If an account exists for{' '}
                       <span className="font-medium text-apple-text">{email}</span>, we sent password
-                      reset instructions. Check your inbox and spam folder.
+                      reset instructions from{' '}
+                      <span className="font-medium text-apple-text">noreply@makeamag.com</span>.
+                      Check your inbox, spam, and any company quarantine folder — delivery can take
+                      a few minutes.
                     </>
                   ) : (
                     <>
@@ -127,13 +130,14 @@ export function ForgotPasswordPage() {
                     </>
                   )}
                 </p>
-                {!delivered && (
+                {delivered && (
                   <p className="mt-3 rounded-xl bg-apple-gray px-4 py-3 text-sm text-apple-muted">
-                    Try signing in with{' '}
+                    Nothing arrived? Try{' '}
                     <Link to="/auth" className="apple-link">
                       Email me a sign-in link
                     </Link>{' '}
-                    instead. If you originally signed up that way, you may not have a password yet.
+                    on the sign-in page instead — it uses the same delivery path but may work if your
+                    mail filter treats it differently.
                   </p>
                 )}
                 <p className="mt-3 text-sm text-apple-muted">

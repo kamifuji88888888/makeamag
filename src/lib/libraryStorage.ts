@@ -1,5 +1,6 @@
 import type {
   BrandingConfig,
+  FlipbookVisibility,
   LeadCaptureConfig,
   LinkHotspot,
   MonetizationConfig,
@@ -66,6 +67,7 @@ export interface LibraryEntry {
   flipbookId: string | null
   pageCount: number
   isPasswordProtected: boolean
+  visibility?: FlipbookVisibility
   folderId?: string | null
   publication?: PublicationInfo
   tableOfContents?: TocEntry[]

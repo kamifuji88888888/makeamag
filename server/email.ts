@@ -1,6 +1,9 @@
 import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses'
+import { SUPPORT_EMAIL } from '../shared/site.js'
 
 const clientUrl = (process.env.CLIENT_URL ?? 'http://localhost:5173').replace(/\/$/, '')
+
+type AuthEmailBackend = 'ses' | 'resend'
 
 function authFromAddress(): string | null {
   return process.env.AUTH_EMAIL_FROM?.trim() || null
@@ -30,10 +33,29 @@ export function isAuthEmailEnabled(): boolean {
   return isSesConfigured() || isResendConfigured()
 }
 
+function configuredBackends(): AuthEmailBackend[] {
+  const backends: AuthEmailBackend[] = []
+  if (isSesConfigured()) backends.push('ses')
+  if (isResendConfigured()) backends.push('resend')
+  return backends
+}
+
+function preferredAuthEmailBackends(): AuthEmailBackend[] {
+  const configured = configuredBackends()
+  if (configured.length === 0) return []
+
+  const preferred = process.env.AUTH_EMAIL_PROVIDER?.trim().toLowerCase()
+  if (preferred === 'resend' && configured.includes('resend')) {
+    return ['resend', ...configured.filter((backend) => backend !== 'resend')]
+  }
+  if (preferred === 'ses' && configured.includes('ses')) {
+    return ['ses', ...configured.filter((backend) => backend !== 'ses')]
+  }
+  return configured
+}
+
 export function authEmailProvider(): 'ses' | 'resend' | null {
-  if (isSesConfigured()) return 'ses'
-  if (isResendConfigured()) return 'resend'
-  return null
+  return preferredAuthEmailBackends()[0] ?? null
 }
 
 export function isMagicLinkEnabled(): boolean {
@@ -70,6 +92,52 @@ function htmlToPlainText(html: string): string {
     .trim()
 }
 
+async function sendViaSes(from: string, to: string, subject: string, html: string, text: string): Promise<void> {
+  const result = await getSesClient().send(
+    new SendEmailCommand({
+      Source: from,
+      Destination: { ToAddresses: [to] },
+      ReplyToAddresses: [SUPPORT_EMAIL],
+      Message: {
+        Subject: { Data: subject, Charset: 'UTF-8' },
+        Body: {
+          Html: { Data: html, Charset: 'UTF-8' },
+          Text: { Data: text, Charset: 'UTF-8' },
+        },
+      },
+    }),
+  )
+  if (process.env.NODE_ENV === 'production') {
+    console.log(`[auth] SES email sent to ${to} (messageId=${result.MessageId ?? 'unknown'})`)
+  }
+}
+
+async function sendViaResend(from: string, to: string, subject: string, html: string, text: string): Promise<void> {
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${resendApiKey()}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from,
+      to,
+      reply_to: SUPPORT_EMAIL,
+      subject,
+      html,
+      text,
+    }),
+  })
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => '')
+    throw new Error(body || 'Failed to send email via Resend')
+  }
+  if (process.env.NODE_ENV === 'production') {
+    console.log(`[auth] Resend email sent to ${to}`)
+  }
+}
+
 async function sendAuthHtmlEmail(to: string, subject: string, html: string): Promise<void> {
   const from = authFromAddress()
   if (!from) {
@@ -77,57 +145,29 @@ async function sendAuthHtmlEmail(to: string, subject: string, html: string): Pro
   }
 
   const text = htmlToPlainText(html)
+  const backends = preferredAuthEmailBackends()
+  if (backends.length === 0) {
+    throw new Error(
+      'Email is not configured. Set AUTH_EMAIL_FROM and AWS credentials for Amazon SES.',
+    )
+  }
 
-  if (isSesConfigured()) {
+  let lastError: unknown
+  for (const backend of backends) {
     try {
-      const result = await getSesClient().send(
-        new SendEmailCommand({
-          Source: from,
-          Destination: { ToAddresses: [to] },
-          Message: {
-            Subject: { Data: subject, Charset: 'UTF-8' },
-            Body: {
-              Html: { Data: html, Charset: 'UTF-8' },
-              Text: { Data: text, Charset: 'UTF-8' },
-            },
-          },
-        }),
-      )
-      if (process.env.NODE_ENV === 'production') {
-        console.log(`[auth] SES email sent to ${to} (messageId=${result.MessageId ?? 'unknown'})`)
+      if (backend === 'ses') {
+        await sendViaSes(from, to, subject, html, text)
+      } else {
+        await sendViaResend(from, to, subject, html, text)
       }
+      return
     } catch (error) {
-      throw new Error(formatAuthEmailError(error))
+      lastError = error
+      console.error(`[auth] ${backend} failed for ${to}:`, error instanceof Error ? error.message : error)
     }
-    return
   }
 
-  if (isResendConfigured()) {
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${resendApiKey()}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from,
-        to,
-        subject,
-        html,
-        text,
-      }),
-    })
-
-    if (!response.ok) {
-      const body = await response.text().catch(() => '')
-      throw new Error(body || 'Failed to send email via Resend')
-    }
-    return
-  }
-
-  throw new Error(
-    'Email is not configured. Set AUTH_EMAIL_FROM and AWS credentials for Amazon SES.',
-  )
+  throw new Error(formatAuthEmailError(lastError))
 }
 
 function formatAuthEmailError(error: unknown): string {

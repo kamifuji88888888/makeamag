@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
-import type { BrandingConfig, PublicationInfo } from '../../shared/flipbook'
-import { displayDescription, displayTitle } from '../../shared/flipbook'
+import type { BrandingConfig, FlipbookVisibility, PublicationInfo } from '../../shared/flipbook'
+import { displayDescription, displayTitle, shouldNoindexFlipbook } from '../../shared/flipbook'
 
 interface FlipbookDocumentMetaInput {
   fileName: string
@@ -9,6 +9,8 @@ interface FlipbookDocumentMetaInput {
   branding?: BrandingConfig
   pagePath?: string
   enabled?: boolean
+  visibility?: FlipbookVisibility
+  isPasswordProtected?: boolean
 }
 
 function upsertMetaTag(attribute: 'name' | 'property', key: string, content: string) {
@@ -23,6 +25,11 @@ function upsertMetaTag(attribute: 'name' | 'property', key: string, content: str
   element.setAttribute('content', content)
 }
 
+function removeMetaTag(attribute: 'name' | 'property', key: string) {
+  const element = document.head.querySelector(`meta[${attribute}="${key}"]`)
+  element?.remove()
+}
+
 export function useFlipbookDocumentMeta({
   fileName,
   publication,
@@ -30,6 +37,8 @@ export function useFlipbookDocumentMeta({
   branding,
   pagePath,
   enabled = true,
+  visibility = 'public',
+  isPasswordProtected = false,
 }: FlipbookDocumentMetaInput) {
   useEffect(() => {
     if (!enabled || !fileName) return
@@ -54,6 +63,12 @@ export function useFlipbookDocumentMeta({
     upsertMetaTag('name', 'twitter:title', title)
     upsertMetaTag('name', 'twitter:description', description)
 
+    if (shouldNoindexFlipbook({ visibility, isPasswordProtected })) {
+      upsertMetaTag('name', 'robots', 'noindex, nofollow')
+    } else {
+      removeMetaTag('name', 'robots')
+    }
+
     const imageUrl =
       flipbookId && branding?.logoUrl
         ? `${window.location.origin}/api/flipbooks/${flipbookId}/logo`
@@ -65,6 +80,16 @@ export function useFlipbookDocumentMeta({
 
     return () => {
       document.title = previousTitle
+      removeMetaTag('name', 'robots')
     }
-  }, [branding?.logoUrl, enabled, fileName, flipbookId, pagePath, publication])
+  }, [
+    branding?.logoUrl,
+    enabled,
+    fileName,
+    flipbookId,
+    isPasswordProtected,
+    pagePath,
+    publication,
+    visibility,
+  ])
 }

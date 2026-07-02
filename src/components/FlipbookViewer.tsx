@@ -9,6 +9,7 @@ import HTMLFlipBook from 'react-pageflip'
 import type { HTMLFlipBookRef } from 'react-pageflip'
 import type {
   BrandingConfig,
+  FlipbookVisibility,
   LeadCaptureConfig,
   LinkHotspot,
   MonetizationConfig,
@@ -63,6 +64,7 @@ interface FlipbookViewerProps {
   leadCaptureUnlocked?: boolean
   isCustomDomain?: boolean
   shareUrl?: string | null
+  visibility?: FlipbookVisibility
   isPasswordProtected?: boolean
   isPublishing?: boolean
   hideChrome?: boolean
@@ -86,6 +88,7 @@ interface FlipbookViewerProps {
   onLogoUpload?: (file: File) => Promise<void>
   onLogoRemove?: () => Promise<void>
   onPasswordChange?: (password: string, enabled: boolean) => void
+  onVisibilityChange?: (visibility: FlipbookVisibility) => void
   canPasswordProtect?: boolean
   canVideoEmbeds?: boolean
   canAnalytics?: boolean
@@ -212,6 +215,7 @@ export function FlipbookViewer({
   leadCaptureUnlocked = true,
   isCustomDomain = false,
   shareUrl = null,
+  visibility = 'public',
   isPasswordProtected = false,
   isPublishing = false,
   hideChrome = false,
@@ -235,6 +239,7 @@ export function FlipbookViewer({
   onLogoUpload,
   onLogoRemove,
   onPasswordChange,
+  onVisibilityChange,
   canPasswordProtect = true,
   canVideoEmbeds = true,
   canAnalytics = true,
@@ -836,7 +841,7 @@ export function FlipbookViewer({
             onOpenSearch={visibleImages.length > 0 ? () => setShowSearch(true) : undefined}
             onShare={mode === 'editor' ? handleShareClick : undefined}
             onOpenSocialShare={
-              mode === 'editor' ? () => setShowSocialShareDialog(true) : undefined
+              flipbookId ? () => setShowSocialShareDialog(true) : undefined
             }
           />
         )}
@@ -940,15 +945,17 @@ export function FlipbookViewer({
           fileName={fileName}
           publication={publication}
           branding={branding}
+          visibility={visibility}
           isPasswordProtected={isPasswordProtected}
           canPasswordProtect={canPasswordProtect}
           onUpgradeRequest={onUpgradeRequest}
           onClose={() => setShowShareDialog(false)}
           onPasswordChange={handlePasswordChange}
+          onVisibilityChange={onVisibilityChange ?? (() => {})}
         />
       )}
 
-      {showSocialShareDialog && mode === 'editor' && (
+      {showSocialShareDialog && flipbookId && (
         <SocialShareDialog
           flipbookId={flipbookId}
           fileName={fileName}

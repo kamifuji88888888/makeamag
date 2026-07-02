@@ -101,11 +101,16 @@ export interface CapturedLead {
   referrer?: string
 }
 
+export type FlipbookVisibility = 'public' | 'unlisted'
+
+export const DEFAULT_VISIBILITY: FlipbookVisibility = 'public'
+
 export interface FlipbookPublicMeta {
   id: string
   fileName: string
   createdAt: string
   videoEmbeds: VideoEmbed[]
+  visibility: FlipbookVisibility
   isPasswordProtected: boolean
   hasSubscriberAccess: boolean
   publication: PublicationInfo
@@ -428,12 +433,23 @@ export function normalizePublication(publication?: Partial<PublicationInfo>): Pu
   }
 }
 
+export function normalizeVisibility(value?: string | null): FlipbookVisibility {
+  return value === 'unlisted' ? 'unlisted' : 'public'
+}
+
+export function shouldNoindexFlipbook(
+  meta: Pick<FlipbookPublicMeta, 'visibility' | 'isPasswordProtected'>,
+): boolean {
+  return meta.visibility === 'unlisted' || meta.isPasswordProtected
+}
+
 export function toPublicMeta(meta: FlipbookStoredMeta): FlipbookPublicMeta {
   return {
     id: meta.id,
     fileName: meta.fileName,
     createdAt: meta.createdAt,
     videoEmbeds: meta.videoEmbeds ?? [],
+    visibility: normalizeVisibility(meta.visibility),
     isPasswordProtected: Boolean(meta.passwordHash),
     hasSubscriberAccess: Boolean(meta.subscriberAccessHash),
     publication: normalizePublication(meta.publication),

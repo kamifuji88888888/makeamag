@@ -17,11 +17,33 @@ export function EmbedPage() {
   const [stripeUnlocked, setStripeUnlocked] = useState(false)
 
   useFlipbookDocumentMeta({
-    enabled: state.status === 'ready',
-    fileName: state.status === 'ready' ? state.fileName : '',
-    publication: state.status === 'ready' ? state.publication : { title: '', publisherName: '', issueLabel: '', description: '' },
+    enabled: state.status === 'ready' || state.status === 'locked',
+    fileName:
+      state.status === 'ready' || state.status === 'locked'
+        ? state.status === 'locked'
+          ? state.meta.fileName
+          : state.fileName
+        : '',
+    publication:
+      state.status === 'ready'
+        ? state.publication
+        : state.status === 'locked'
+          ? state.meta.publication
+          : { title: '', publisherName: '', issueLabel: '', description: '' },
     flipbookId: id,
-    branding: state.status === 'ready' ? state.branding : undefined,
+    branding: state.status === 'ready' ? state.branding : state.status === 'locked' ? state.meta.branding : undefined,
+    visibility:
+      state.status === 'ready'
+        ? state.visibility
+        : state.status === 'locked'
+          ? state.meta.visibility
+          : 'public',
+    isPasswordProtected:
+      state.status === 'ready'
+        ? state.isPasswordProtected
+        : state.status === 'locked'
+          ? state.meta.isPasswordProtected
+          : false,
     pagePath: id ? `/embed/${id}` : undefined,
   })
 
@@ -107,6 +129,8 @@ export function EmbedPage() {
         monetizationUnlocked={state.monetizationUnlocked || stripeUnlocked}
         leadCaptureUnlocked={state.leadCaptureUnlocked}
         pageTexts={state.pageTexts}
+        visibility={state.visibility}
+        isPasswordProtected={state.isPasswordProtected}
         onMonetizationUnlock={handleMonetizationUnlock}
         onLeadCaptureSubmit={handleLeadCaptureSubmit}
         hideChrome={chromeHidden}

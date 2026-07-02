@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import type { FlipbookVisibility } from '../../shared/flipbook'
 import {
   addLibraryEntry,
   countEntriesForFolder,
@@ -82,6 +83,7 @@ export function useFlipbookLibrary() {
         id: string
         fileName: string
         isPasswordProtected: boolean
+        visibility?: FlipbookVisibility
         pageCount?: number
         publication?: LibraryEntry['publication']
         tableOfContents?: LibraryEntry['tableOfContents']
@@ -98,6 +100,7 @@ export function useFlipbookLibrary() {
         flipbookId: flipbook.id,
         fileName: flipbook.fileName,
         isPasswordProtected: flipbook.isPasswordProtected,
+        ...(flipbook.visibility ? { visibility: flipbook.visibility } : {}),
         ...(flipbook.pageCount !== undefined ? { pageCount: flipbook.pageCount } : {}),
         ...(flipbook.publication ? { publication: flipbook.publication } : {}),
         ...(flipbook.tableOfContents ? { tableOfContents: flipbook.tableOfContents } : {}),

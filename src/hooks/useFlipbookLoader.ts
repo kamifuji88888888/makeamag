@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type {
   BrandingConfig,
   FlipbookPublicMeta,
+  FlipbookVisibility,
   LeadCaptureConfig,
   LinkHotspot,
   MonetizationConfig,
@@ -11,7 +12,7 @@ import type {
   TocEntry,
   VideoEmbed,
 } from '../../shared/flipbook'
-import { normalizeBranding, normalizeLeadCapture, normalizeMonetization, normalizePopUpPanelStyle, normalizePublication } from '../../shared/flipbook'
+import { normalizeBranding, normalizeLeadCapture, normalizeMonetization, normalizePopUpPanelStyle, normalizePublication, normalizeVisibility } from '../../shared/flipbook'
 import {
   clearAccessToken,
   fetchFlipbook,
@@ -41,6 +42,8 @@ export type FlipbookLoadState =
       tableOfContents: TocEntry[]
       spreadView: boolean
       branding: BrandingConfig
+      visibility: FlipbookVisibility
+      isPasswordProtected: boolean
       monetization: MonetizationConfig
       leadCapture: LeadCaptureConfig
       hasSubscriberAccess: boolean
@@ -82,6 +85,8 @@ export function useFlipbookLoader(id: string | undefined) {
         tableOfContents: meta.tableOfContents ?? [],
         spreadView: meta.spreadView ?? result.aspectRatio > 1.15,
         branding: normalizeBranding(meta.branding),
+        visibility: normalizeVisibility(meta.visibility),
+        isPasswordProtected: meta.isPasswordProtected,
         monetization,
         leadCapture,
         hasSubscriberAccess: meta.hasSubscriberAccess,

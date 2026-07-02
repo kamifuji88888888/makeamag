@@ -10,6 +10,7 @@ import type { AnalyticsEventInput } from '../shared/analytics.js'
 import type {
   BrandingConfig,
   FlipbookStoredMeta,
+  FlipbookVisibility,
   LeadCaptureConfig,
   LinkHotspot,
   MonetizationConfig,
@@ -31,6 +32,7 @@ import {
   normalizePopUpPanelStyle,
   normalizePopUpPanels,
   normalizePublication,
+  normalizeVisibility,
   toPublicMeta,
 } from '../shared/flipbook.js'
 import {
@@ -508,6 +510,9 @@ app.post('/api/flipbooks', upload.single('pdf'), async (req, res) => {
     )
     const subscriberAccessCode =
       typeof req.body.subscriberAccessCode === 'string' ? req.body.subscriberAccessCode.trim() : ''
+    const visibility = normalizeVisibility(
+      typeof req.body.visibility === 'string' ? req.body.visibility : undefined,
+    )
     const session = readSessionFromRequest(req)
     const billingAccountId = billingAccountForSession(
       session,
@@ -529,6 +534,7 @@ app.post('/api/flipbooks', upload.single('pdf'), async (req, res) => {
       branding,
       monetization,
       leadCapture,
+      visibility,
       pdfKey,
       pdfSizeBytes: req.file.size,
       ...(billingAccountId ? { billingAccountId } : {}),
@@ -703,6 +709,7 @@ app.patch('/api/flipbooks/:id', async (req, res) => {
     leadCapture,
     subscriberAccessCode,
     removeSubscriberAccess,
+    visibility,
   } = req.body as {
     videoEmbeds?: VideoEmbed[]
     password?: string
@@ -718,6 +725,7 @@ app.patch('/api/flipbooks/:id', async (req, res) => {
     leadCapture?: Partial<LeadCaptureConfig>
     subscriberAccessCode?: string
     removeSubscriberAccess?: boolean
+    visibility?: FlipbookVisibility
   }
 
   if (videoEmbeds !== undefined) {
@@ -792,6 +800,10 @@ app.patch('/api/flipbooks/:id', async (req, res) => {
 
   if (leadCapture !== undefined) {
     meta.leadCapture = normalizeLeadCapture({ ...meta.leadCapture, ...leadCapture })
+  }
+
+  if (visibility !== undefined) {
+    meta.visibility = normalizeVisibility(visibility)
   }
 
   if (removeSubscriberAccess) {

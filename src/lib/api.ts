@@ -4,6 +4,7 @@ import type {
   BrandingConfig,
   CapturedLead,
   FlipbookPublicMeta,
+  FlipbookVisibility,
   LeadCaptureConfig,
   LinkHotspot,
   MonetizationConfig,
@@ -27,6 +28,7 @@ export interface PublisherUpdate {
   leadCapture?: LeadCaptureConfig
   subscriberAccessCode?: string
   removeSubscriberAccess?: boolean
+  visibility?: FlipbookVisibility
 }
 
 const API_BASE = '/api'
@@ -118,6 +120,7 @@ export async function publishFlipbook(
     monetization?: MonetizationConfig
     leadCapture?: LeadCaptureConfig
     subscriberAccessCode?: string
+    visibility?: FlipbookVisibility
     planId?: PlanId
     billingAccountId?: string
   },
@@ -154,6 +157,9 @@ export async function publishFlipbook(
   }
   if (options?.subscriberAccessCode?.trim()) {
     formData.append('subscriberAccessCode', options.subscriberAccessCode.trim())
+  }
+  if (options?.visibility) {
+    formData.append('visibility', options.visibility)
   }
   if (options?.password?.trim()) {
     formData.append('password', options.password.trim())

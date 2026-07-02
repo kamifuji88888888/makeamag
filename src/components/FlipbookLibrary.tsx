@@ -331,6 +331,7 @@ export function FlipbookLibrary({
                       {entry.pageCount} pages · {formatDate(entry.updatedAt)}
                       {entry.type === 'draft' ? ' · Draft' : ''}
                       {entry.isPasswordProtected ? ' · Protected' : ''}
+                      {entry.visibility === 'unlisted' ? ' · Unlisted' : ''}
                     </p>
                   </div>
 
