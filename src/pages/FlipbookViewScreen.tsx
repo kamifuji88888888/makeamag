@@ -101,12 +101,14 @@ export function FlipbookViewScreen({ id, isCustomDomain = false }: FlipbookViewS
   const pageParam = Number(searchParams.get('page'))
   const initialPage = Number.isFinite(pageParam) && pageParam > 0 ? pageParam : undefined
 
+  const showBrandedNav = !state.branding.hidePlatformChrome || state.branding.logoUrl
+
   return (
     <div
-      className="branded-scope min-h-screen bg-apple-bg"
+      className="branded-scope flex h-[100dvh] flex-col bg-apple-bg"
       style={brandingScopeStyle(state.branding)}
     >
-      {!state.branding.hidePlatformChrome || state.branding.logoUrl ? (
+      {showBrandedNav ? (
         <BrandedNav
           flipbookId={id ?? null}
           fileName={state.fileName}
@@ -116,6 +118,7 @@ export function FlipbookViewScreen({ id, isCustomDomain = false }: FlipbookViewS
           subtitle={title}
         />
       ) : null}
+      <div className="min-h-0 flex-1">
       <FlipbookViewer
         images={state.images}
         aspectRatio={state.aspectRatio}
@@ -143,6 +146,7 @@ export function FlipbookViewScreen({ id, isCustomDomain = false }: FlipbookViewS
         isCustomDomain={isCustomDomain}
         initialPage={initialPage}
       />
+      </div>
     </div>
   )
 }

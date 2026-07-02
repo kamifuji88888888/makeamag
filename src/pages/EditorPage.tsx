@@ -870,9 +870,9 @@ export function EditorPage() {
         )}
 
         {state.status === 'ready' && (
-          <div className="px-6 py-10">
+          <div className="flex h-[calc(100dvh-52px)] flex-col overflow-hidden">
             {stripeNotice && (
-              <div className="mx-auto mb-6 flex max-w-xl items-center justify-between rounded-full border border-emerald-200 bg-emerald-50 px-5 py-2.5 text-sm text-emerald-800">
+              <div className="mx-auto mb-2 flex max-w-xl shrink-0 items-center justify-between rounded-full border border-emerald-200 bg-emerald-50 px-5 py-2 text-sm text-emerald-800">
                 <span>{stripeNotice}</span>
                 <button
                   type="button"
@@ -883,6 +883,7 @@ export function EditorPage() {
                 </button>
               </div>
             )}
+            <div className="min-h-0 flex-1">
             <FlipbookViewer
               images={state.images}
               aspectRatio={state.aspectRatio}
@@ -935,6 +936,7 @@ export function EditorPage() {
               onStripeConnect={handleStripeConnect}
               onUpgradeRequest={handleUpgradeFeature}
             />
+            </div>
           </div>
         )}
       </main>

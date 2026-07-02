@@ -118,7 +118,7 @@ export function PublicationHeader({
         <h2 className={titleClass}>{title}</h2>
       )}
 
-      {canEdit && !editing && (
+      {canEdit && !editing && !compact && (
         <p className="mt-1 text-xs text-apple-muted">Click title to rename</p>
       )}
 

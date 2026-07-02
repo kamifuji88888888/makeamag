@@ -101,11 +101,31 @@ interface FlipbookViewerProps {
   onUpgradeRequest?: (feature: PlanFeature, label: string) => void
 }
 
+function estimateViewerChrome(mode: 'editor' | 'shared' | 'embed', hideChrome: boolean): number {
+  if (hideChrome) {
+    return mode === 'embed' ? 24 : 36
+  }
+
+  const gapTotal = 24 // gap-1.5 between stacked toolbar sections
+
+  if (mode === 'editor') {
+    return 16 + 48 + 28 + 40 + 112 + gapTotal + 24
+  }
+
+  if (mode === 'shared') {
+    return 16 + 40 + 28 + 40 + 56 + 24 + gapTotal + 20
+  }
+
+  // embed
+  return 16 + 28 + 40 + 48 + gapTotal + 12
+}
+
 function useFlipbookDimensions(
   aspectRatio: number,
   mode: 'editor' | 'shared' | 'embed',
   spreadView: boolean,
   singlePageLayout: boolean,
+  hideChrome: boolean,
 ) {
   const [dims, setDims] = useState({ width: 500, height: 700 })
 
@@ -113,13 +133,13 @@ function useFlipbookDimensions(
     function update() {
       const isEmbed = mode === 'embed'
       const isShared = mode === 'shared'
-      const padding = isEmbed ? 16 : isShared ? 32 : 48
-      const verticalChrome = isEmbed ? 72 : isShared ? 112 : 168
-      const maxHeight = window.innerHeight - verticalChrome
+      const padding = isEmbed ? 12 : 16
+      const chrome = estimateViewerChrome(mode, hideChrome)
+      const maxHeight = Math.max(240, window.innerHeight - chrome)
 
       if (spreadView && singlePageLayout) {
         // Cover / back cover: one centered page, as tall as the viewport allows.
-        const maxWidth = window.innerWidth - padding
+        const maxWidth = window.innerWidth - padding * 2
         let pageHeight = Math.floor(maxHeight)
         let pageWidth = Math.floor(pageHeight * aspectRatio)
 
@@ -130,15 +150,15 @@ function useFlipbookDimensions(
 
         setDims({
           width: Math.max(240, pageWidth),
-          height: Math.max(320, pageHeight),
+          height: Math.max(240, pageHeight),
         })
         return
       }
 
       const maxTotalWidth = spreadView
-        ? window.innerWidth - padding
+        ? window.innerWidth - padding * 2
         : Math.min(
-            window.innerWidth - padding,
+            window.innerWidth - padding * 2,
             isEmbed ? 1400 : isShared ? 1200 : 960,
           )
 
@@ -153,31 +173,29 @@ function useFlipbookDimensions(
 
         setDims({
           width: Math.max(240, pageWidth),
-          height: Math.max(320, pageHeight),
+          height: Math.max(240, pageHeight),
         })
         return
       }
 
-      const controlsHeight = isEmbed ? 56 : isShared ? 80 : 120
-      const maxHeightSingle = window.innerHeight - controlsHeight - padding
       let pageWidth = maxTotalWidth
       let pageHeight = pageWidth / aspectRatio
 
-      if (pageHeight > maxHeightSingle) {
-        pageHeight = maxHeightSingle
+      if (pageHeight > maxHeight) {
+        pageHeight = maxHeight
         pageWidth = pageHeight * aspectRatio
       }
 
       setDims({
         width: Math.max(240, Math.floor(pageWidth)),
-        height: Math.max(320, Math.floor(pageHeight)),
+        height: Math.max(240, Math.floor(pageHeight)),
       })
     }
 
     update()
     window.addEventListener('resize', update)
     return () => window.removeEventListener('resize', update)
-  }, [aspectRatio, mode, singlePageLayout, spreadView])
+  }, [aspectRatio, hideChrome, mode, singlePageLayout, spreadView])
 
   return dims
 }
@@ -317,6 +335,7 @@ export function FlipbookViewer({
     mode,
     spreadView,
     usePortraitLayout,
+    hideChrome,
   )
   const bookWidth = usePortraitLayout ? width : width * 2
   const {
@@ -661,15 +680,19 @@ export function FlipbookViewer({
       <div
         ref={containerRef}
         className={[
-          'branded-scope flex flex-col items-center justify-center',
-          isEmbed ? 'h-full gap-3 bg-apple-bg p-2' : isShared ? 'min-h-screen gap-8 bg-apple-bg px-4 py-8' : 'min-h-full gap-8 px-4 py-4',
+          'branded-scope flex flex-col items-center',
+          isEmbed
+            ? 'h-full gap-1.5 overflow-hidden bg-apple-bg p-2'
+            : 'h-full min-h-0 gap-1.5 overflow-hidden bg-apple-bg px-3 py-2',
         ].join(' ')}
         style={brandingScopeStyle(branding)}
       >
         {!isShared && !isEmbed && !hideChrome && (
-          <PublicationHeader
+          <div className="w-full shrink-0">
+            <PublicationHeader
             fileName={fileName}
             publication={publication}
+            compact
             editable={mode === 'editor'}
             onTitleChange={
               mode === 'editor' && onPublicationChange
@@ -677,14 +700,17 @@ export function FlipbookViewer({
                 : undefined
             }
           />
+          </div>
         )}
 
         {isShared && !hideChrome && (
-          <PublicationHeader fileName={fileName} publication={publication} compact />
+          <div className="w-full shrink-0">
+            <PublicationHeader fileName={fileName} publication={publication} compact />
+          </div>
         )}
 
         {inlinePositionMode && mode === 'editor' && (
-          <div className="flex w-full max-w-xl items-center justify-between rounded-full border border-apple-blue/20 bg-apple-blue/8 px-5 py-2.5 text-sm text-apple-blue">
+          <div className="flex w-full max-w-xl shrink-0 items-center justify-between rounded-full border border-apple-blue/20 bg-apple-blue/8 px-4 py-2 text-sm text-apple-blue">
             <span>Drag to move · pull the corner handle to resize</span>
             <button
               type="button"
@@ -702,7 +728,7 @@ export function FlipbookViewer({
 
         <div
           className={[
-            'flipbook-zoom-viewport',
+            'flipbook-zoom-viewport flex min-h-0 flex-1 items-center justify-center',
             isZoomed ? 'flipbook-zoom-viewport--active' : '',
           ].join(' ')}
           style={{ width: bookWidth, height }}
@@ -749,126 +775,126 @@ export function FlipbookViewer({
         </div>
 
         {!hideChrome && (
-          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
-            <p className="text-sm text-apple-muted">
-              Drag corners to flip · Arrow keys to navigate
-              {isZoomed && ' · Drag to pan'}
-              {mode === 'editor' && inlinePositionMode && ' · Esc to exit position mode'}
-              {gateActive && ' · Preview mode'}
-              {videoEmbeds.length > 0 && !inlinePositionMode && ' · Tap videos to play'}
-              {linkHotspots.length > 0 && !inlinePositionMode && ' · Tap links to open'}
-              {popUpPanels.length > 0 && !inlinePositionMode && ' · Tap + buttons for footnotes & specs'}
-            </p>
-            {onSpreadViewChange && (
-              <div
-                className="inline-flex rounded-full border border-apple-border-light bg-apple-gray p-0.5"
-                role="group"
-                aria-label="Page layout"
+          <div className="flex w-full max-w-[980px] shrink-0 flex-col items-center gap-1.5">
+            <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 px-1">
+              <p className="text-xs text-apple-muted">
+                Drag corners to flip · Arrow keys to navigate
+                {isZoomed && ' · Drag to pan'}
+                {mode === 'editor' && inlinePositionMode && ' · Esc to exit position mode'}
+                {gateActive && ' · Preview mode'}
+                {videoEmbeds.length > 0 && !inlinePositionMode && ' · Tap videos to play'}
+                {linkHotspots.length > 0 && !inlinePositionMode && ' · Tap links to open'}
+                {popUpPanels.length > 0 && !inlinePositionMode && ' · Tap + buttons for footnotes & specs'}
+              </p>
+              {onSpreadViewChange && (
+                <div
+                  className="inline-flex shrink-0 rounded-full border border-apple-border-light bg-apple-gray p-0.5"
+                  role="group"
+                  aria-label="Page layout"
+                >
+                  <button
+                    type="button"
+                    onClick={() => onSpreadViewChange(false)}
+                    aria-pressed={!spreadView}
+                    className={[
+                      'rounded-full px-2.5 py-0.5 text-xs font-medium transition',
+                      !spreadView
+                        ? 'bg-white text-apple-text shadow-sm'
+                        : 'text-apple-muted hover:text-apple-text',
+                    ].join(' ')}
+                  >
+                    Page
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onSpreadViewChange(true)}
+                    aria-pressed={spreadView}
+                    className={[
+                      'rounded-full px-2.5 py-0.5 text-xs font-medium transition',
+                      spreadView
+                        ? 'bg-white text-apple-text shadow-sm'
+                        : 'text-apple-muted hover:text-apple-text',
+                    ].join(' ')}
+                  >
+                    Spread
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {!inlinePositionMode && (
+              <FlipbookZoomControls
+                zoom={zoom}
+                minZoom={minZoom}
+                maxZoom={maxZoom}
+                onZoomChange={setZoomLevel}
+                onReset={resetZoom}
+                compact={isEmbed || mode === 'editor'}
+              />
+            )}
+
+            <FlipbookControls
+              currentPage={currentPage}
+              totalPages={totalPages}
+              soundEnabled={soundEnabled}
+              mode={mode}
+              isPublishing={isPublishing}
+              positionMode={inlinePositionMode}
+              hasContents={hasContents}
+              onPrev={flipPrev}
+              onNext={flipNext}
+              onGoToPage={goToPage}
+              onToggleSound={() => setSoundEnabled((v) => !v)}
+              onUploadNew={onUploadNew}
+              onFullscreen={mode === 'editor' ? toggleFullscreen : undefined}
+              onAddVideo={
+                mode === 'editor'
+                  ? () => {
+                      if (!canVideoEmbeds) {
+                        onUpgradeRequest?.('videoEmbeds', 'Video embeds')
+                        return
+                      }
+                      setShowVideoEditor(true)
+                    }
+                  : undefined
+              }
+              onTogglePositionMode={mode === 'editor' ? togglePositionMode : undefined}
+              onOpenPositionPreview={
+                mode === 'editor'
+                  ? () => {
+                      setPositionPageIndex(currentPage - 1)
+                      setShowPositionPreview(true)
+                    }
+                  : undefined
+              }
+              onOpenPublisher={mode === 'editor' ? () => setShowPublisherPanel(true) : undefined}
+              onOpenContents={
+                hasContents ? () => setShowTocSidebar(true) : undefined
+              }
+              onOpenSearch={visibleImages.length > 0 ? () => setShowSearch(true) : undefined}
+              onShare={mode === 'editor' ? handleShareClick : undefined}
+              onOpenSocialShare={
+                flipbookId ? () => setShowSocialShareDialog(true) : undefined
+              }
+            />
+
+            {isShared && !branding.hidePlatformChrome && !isCustomDomain && (
+              <a href="/" className="apple-link pb-0.5 text-xs">
+                Create your own mag ›
+              </a>
+            )}
+
+            {isEmbed && !branding.hidePlatformChrome && (
+              <a
+                href={flipbookId ? `/view/${flipbookId}` : '/'}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="apple-link pb-0.5 text-xs"
               >
-                <button
-                  type="button"
-                  onClick={() => onSpreadViewChange(false)}
-                  aria-pressed={!spreadView}
-                  className={[
-                    'rounded-full px-3 py-1 text-xs font-medium transition',
-                    !spreadView
-                      ? 'bg-white text-apple-text shadow-sm'
-                      : 'text-apple-muted hover:text-apple-text',
-                  ].join(' ')}
-                >
-                  Page
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onSpreadViewChange(true)}
-                  aria-pressed={spreadView}
-                  className={[
-                    'rounded-full px-3 py-1 text-xs font-medium transition',
-                    spreadView
-                      ? 'bg-white text-apple-text shadow-sm'
-                      : 'text-apple-muted hover:text-apple-text',
-                  ].join(' ')}
-                >
-                  Spread
-                </button>
-              </div>
+                Open {displayName} ›
+              </a>
             )}
           </div>
-        )}
-
-        {!hideChrome && !inlinePositionMode && (
-          <FlipbookZoomControls
-            zoom={zoom}
-            minZoom={minZoom}
-            maxZoom={maxZoom}
-            onZoomChange={setZoomLevel}
-            onReset={resetZoom}
-            compact={isEmbed}
-          />
-        )}
-
-        {!hideChrome && (
-          <FlipbookControls
-            currentPage={currentPage}
-            totalPages={totalPages}
-            soundEnabled={soundEnabled}
-            mode={mode}
-            isPublishing={isPublishing}
-            positionMode={inlinePositionMode}
-            hasContents={hasContents}
-            onPrev={flipPrev}
-            onNext={flipNext}
-            onGoToPage={goToPage}
-            onToggleSound={() => setSoundEnabled((v) => !v)}
-            onUploadNew={onUploadNew}
-            onFullscreen={mode === 'editor' ? toggleFullscreen : undefined}
-            onAddVideo={
-              mode === 'editor'
-                ? () => {
-                    if (!canVideoEmbeds) {
-                      onUpgradeRequest?.('videoEmbeds', 'Video embeds')
-                      return
-                    }
-                    setShowVideoEditor(true)
-                  }
-                : undefined
-            }
-            onTogglePositionMode={mode === 'editor' ? togglePositionMode : undefined}
-            onOpenPositionPreview={
-              mode === 'editor'
-                ? () => {
-                    setPositionPageIndex(currentPage - 1)
-                    setShowPositionPreview(true)
-                  }
-                : undefined
-            }
-            onOpenPublisher={mode === 'editor' ? () => setShowPublisherPanel(true) : undefined}
-            onOpenContents={
-              hasContents ? () => setShowTocSidebar(true) : undefined
-            }
-            onOpenSearch={visibleImages.length > 0 ? () => setShowSearch(true) : undefined}
-            onShare={mode === 'editor' ? handleShareClick : undefined}
-            onOpenSocialShare={
-              flipbookId ? () => setShowSocialShareDialog(true) : undefined
-            }
-          />
-        )}
-
-        {isShared && !hideChrome && !branding.hidePlatformChrome && !isCustomDomain && (
-          <a href="/" className="apple-link text-sm">
-            Create your own mag ›
-          </a>
-        )}
-
-        {isEmbed && !hideChrome && !branding.hidePlatformChrome && (
-          <a
-            href={flipbookId ? `/view/${flipbookId}` : '/'}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="apple-link text-xs"
-          >
-            Open {displayName} ›
-          </a>
         )}
       </div>
 

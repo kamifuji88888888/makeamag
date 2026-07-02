@@ -23,7 +23,7 @@ export function FlipbookZoomControls({
     <div
       className={[
         'apple-controls flex items-center gap-2',
-        compact ? 'px-2 py-1.5' : 'px-3 py-2',
+        compact ? 'px-2 py-1' : 'px-2.5 py-1.5',
       ].join(' ')}
       role="group"
       aria-label="Zoom controls"
