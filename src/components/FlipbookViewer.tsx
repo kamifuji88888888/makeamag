@@ -737,16 +737,51 @@ export function FlipbookViewer({
         </div>
 
         {!hideChrome && (
-          <p className="text-sm text-apple-muted">
-            Drag corners to flip · Arrow keys to navigate
-            {isZoomed && ' · Drag to pan'}
-            {spreadView && ' · Spread view'}
-            {mode === 'editor' && inlinePositionMode && ' · Esc to exit position mode'}
-            {gateActive && ' · Preview mode'}
-            {videoEmbeds.length > 0 && !inlinePositionMode && ' · Tap videos to play'}
-            {linkHotspots.length > 0 && !inlinePositionMode && ' · Tap links to open'}
-            {popUpPanels.length > 0 && !inlinePositionMode && ' · Tap + buttons for footnotes & specs'}
-          </p>
+          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
+            <p className="text-sm text-apple-muted">
+              Drag corners to flip · Arrow keys to navigate
+              {isZoomed && ' · Drag to pan'}
+              {mode === 'editor' && inlinePositionMode && ' · Esc to exit position mode'}
+              {gateActive && ' · Preview mode'}
+              {videoEmbeds.length > 0 && !inlinePositionMode && ' · Tap videos to play'}
+              {linkHotspots.length > 0 && !inlinePositionMode && ' · Tap links to open'}
+              {popUpPanels.length > 0 && !inlinePositionMode && ' · Tap + buttons for footnotes & specs'}
+            </p>
+            {onSpreadViewChange && (
+              <div
+                className="inline-flex rounded-full border border-apple-border-light bg-apple-gray p-0.5"
+                role="group"
+                aria-label="Page layout"
+              >
+                <button
+                  type="button"
+                  onClick={() => onSpreadViewChange(false)}
+                  aria-pressed={!spreadView}
+                  className={[
+                    'rounded-full px-3 py-1 text-xs font-medium transition',
+                    !spreadView
+                      ? 'bg-white text-apple-text shadow-sm'
+                      : 'text-apple-muted hover:text-apple-text',
+                  ].join(' ')}
+                >
+                  Page
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onSpreadViewChange(true)}
+                  aria-pressed={spreadView}
+                  className={[
+                    'rounded-full px-3 py-1 text-xs font-medium transition',
+                    spreadView
+                      ? 'bg-white text-apple-text shadow-sm'
+                      : 'text-apple-muted hover:text-apple-text',
+                  ].join(' ')}
+                >
+                  Spread
+                </button>
+              </div>
+            )}
+          </div>
         )}
 
         {!hideChrome && !inlinePositionMode && (
@@ -768,7 +803,6 @@ export function FlipbookViewer({
             mode={mode}
             isPublishing={isPublishing}
             positionMode={inlinePositionMode}
-            spreadView={spreadView}
             hasContents={hasContents}
             onPrev={flipPrev}
             onNext={flipNext}
@@ -796,9 +830,6 @@ export function FlipbookViewer({
                 : undefined
             }
             onOpenPublisher={mode === 'editor' ? () => setShowPublisherPanel(true) : undefined}
-            onToggleSpread={
-              onSpreadViewChange ? () => onSpreadViewChange(!spreadView) : undefined
-            }
             onOpenContents={
               hasContents ? () => setShowTocSidebar(true) : undefined
             }

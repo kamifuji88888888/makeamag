@@ -16,10 +16,8 @@ interface FlipbookControlsProps {
   onShare?: () => void
   onOpenSocialShare?: () => void
   onOpenPublisher?: () => void
-  onToggleSpread?: () => void
   onOpenContents?: () => void
   onOpenSearch?: () => void
-  spreadView?: boolean
   hasContents?: boolean
 }
 
@@ -41,10 +39,8 @@ export function FlipbookControls({
   onShare,
   onOpenSocialShare,
   onOpenPublisher,
-  onToggleSpread,
   onOpenContents,
   onOpenSearch,
-  spreadView,
   hasContents,
 }: FlipbookControlsProps) {
   const isFirst = currentPage <= 1
@@ -123,17 +119,6 @@ export function FlipbookControls({
       {onOpenSearch && (
         <button type="button" onClick={onOpenSearch} className="apple-btn-ghost">
           Search
-        </button>
-      )}
-
-      {onToggleSpread && (
-        <button
-          type="button"
-          onClick={onToggleSpread}
-          className={spreadView ? 'apple-btn-primary' : 'apple-btn-ghost'}
-          aria-pressed={spreadView}
-        >
-          Spread
         </button>
       )}
 
