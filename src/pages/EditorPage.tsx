@@ -29,6 +29,7 @@ import {
   getShareUrl,
   publishFlipbook,
   startStripeConnect,
+  unlockFlipbook,
   updateFlipbook,
   uploadFlipbookLogo,
 } from '../lib/api'
@@ -349,7 +350,24 @@ export function EditorPage() {
           })
         } else if (entry.flipbookId) {
           const meta = await fetchFlipbook(entry.flipbookId)
-          const buffer = await fetchFlipbookPdf(entry.flipbookId)
+          let buffer: ArrayBuffer
+          try {
+            buffer = await fetchFlipbookPdf(entry.flipbookId)
+          } catch (error) {
+            const message = error instanceof Error ? error.message : ''
+            if (message === 'Password required') {
+              const password = window.prompt(
+                'This magazine is password-protected. Enter the password to open it:',
+              )
+              if (!password?.trim()) {
+                throw new Error('Password required to open this magazine')
+              }
+              await unlockFlipbook(entry.flipbookId, password.trim())
+              buffer = await fetchFlipbookPdf(entry.flipbookId)
+            } else {
+              throw error
+            }
+          }
           const result = await renderPdfFromBuffer(buffer, (progress) => {
             setState({ status: 'loading', fileName: meta.fileName, progress })
           })
@@ -379,12 +397,18 @@ export function EditorPage() {
             visibility: normalizeVisibility(meta.visibility),
             isPasswordProtected: meta.isPasswordProtected,
           })
+        } else {
+          throw new Error('This library entry is missing its published link. Try uploading the PDF again.')
         }
 
         library.bumpUpdated(entry.id)
       } catch (error) {
-        const message =
-          error instanceof Error ? error.message : 'Failed to open flipbook'
+        let message = error instanceof Error ? error.message : 'Failed to open flipbook'
+        if (message === 'Flipbook not found' && entry.flipbookId) {
+          await library.remove(entry.id)
+          message =
+            'This magazine is no longer on the server and was removed from your library. Upload or publish it again.'
+        }
         setState({ status: 'error', message })
       } finally {
         setLibraryLoadingId(null)

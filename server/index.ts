@@ -182,8 +182,13 @@ function parseJsonField<T>(raw: unknown, fallback: T): T {
   }
 }
 
-function canAccessPdf(meta: FlipbookStoredMeta, req: express.Request): boolean {
+function canAccessPdf(
+  meta: FlipbookStoredMeta,
+  req: express.Request,
+  session: ReturnType<typeof readSessionFromRequest>,
+): boolean {
   if (!meta.passwordHash) return true
+  if (canEditFlipbook(meta, session)) return true
   const headerToken = extractBearerToken(req.headers.authorization)
   const queryToken = typeof req.query.t === 'string' ? req.query.t : null
   const token = headerToken ?? queryToken
@@ -660,21 +665,17 @@ app.get('/api/flipbooks/:id/pdf', async (req, res) => {
     return
   }
 
-  if (!canAccessPdf(meta, req)) {
+  const session = readSessionFromRequest(req)
+  if (!canAccessPdf(meta, req, session)) {
     res.status(401).json({ error: 'Password required' })
     return
   }
 
   try {
-    const redirectUrl = await storage.getPdfRedirectUrl(meta.id)
-    if (redirectUrl) {
-      res.redirect(redirectUrl)
-      return
-    }
-
     const pdf = await storage.readPdf(meta.id)
     res.setHeader('Content-Type', 'application/pdf')
     res.setHeader('Content-Disposition', `inline; filename="${meta.fileName}"`)
+    res.setHeader('Cache-Control', 'private, max-age=3600')
     res.send(pdf)
   } catch {
     res.status(404).json({ error: 'PDF file not found' })

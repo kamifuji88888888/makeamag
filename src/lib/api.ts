@@ -209,7 +209,12 @@ export async function updateFlipbook(
 }
 
 export async function fetchFlipbook(id: string): Promise<FlipbookPublicMeta> {
-  const response = await fetch(`${API_BASE}/flipbooks/${id}`)
+  let response: Response
+  try {
+    response = await fetch(`${API_BASE}/flipbooks/${id}`)
+  } catch {
+    throw new Error('Could not reach the server. Check your connection and try again.')
+  }
   if (!response.ok) {
     throw new Error('Flipbook not found')
   }
@@ -362,15 +367,22 @@ export async function ensureFlipbookAccess(
 }
 
 export async function fetchFlipbookPdf(id: string): Promise<ArrayBuffer> {
-  const response = await fetch(`${API_BASE}/flipbooks/${id}/pdf`, {
-    headers: authHeaders(id),
-  })
+  let response: Response
+  try {
+    response = await fetch(`${API_BASE}/flipbooks/${id}/pdf`, {
+      headers: authHeaders(id),
+      credentials: 'include',
+    })
+  } catch {
+    throw new Error('Could not download the PDF. Check your connection and try again.')
+  }
 
   if (response.status === 401) {
     throw new Error('Password required')
   }
   if (!response.ok) {
-    throw new Error('PDF not found')
+    const body = (await response.json().catch(() => ({}))) as { error?: string }
+    throw new Error(body.error ?? 'PDF not found')
   }
   return response.arrayBuffer()
 }
