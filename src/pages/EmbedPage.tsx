@@ -31,7 +31,6 @@ export function EmbedPage() {
           ? state.meta.publication
           : { title: '', publisherName: '', issueLabel: '', description: '' },
     flipbookId: id,
-    branding: state.status === 'ready' ? state.branding : state.status === 'locked' ? state.meta.branding : undefined,
     visibility:
       state.status === 'ready'
         ? state.visibility

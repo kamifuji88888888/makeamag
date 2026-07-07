@@ -15,4 +15,7 @@ export interface StorageProvider {
   saveLogo(id: string, buffer: Buffer, contentType: string): Promise<string>
   readLogo(id: string): Promise<LogoAsset | null>
   deleteLogo(id: string): Promise<void>
+  saveCover(id: string, buffer: Buffer, contentType: string): Promise<string>
+  readCover(id: string): Promise<LogoAsset | null>
+  deleteCover(id: string): Promise<void>
 }

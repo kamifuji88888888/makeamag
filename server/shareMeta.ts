@@ -1,7 +1,13 @@
 import fs from 'fs/promises'
 import path from 'path'
 import type { FlipbookStoredMeta } from '../shared/flipbook.js'
-import { displayDescription, displayTitle, shouldNoindexFlipbook, toPublicMeta } from '../shared/flipbook.js'
+import {
+  displayDescription,
+  displayTitle,
+  flipbookCoverImageUrl,
+  shouldNoindexFlipbook,
+  toPublicMeta,
+} from '../shared/flipbook.js'
 import { SITE_NAME } from '../shared/site.js'
 
 function escapeHtml(value: string): string {
@@ -27,9 +33,7 @@ export function buildShareMetaTags(
   const publicationMeta = { fileName: meta.fileName, publication: meta.publication }
   const title = displayTitle(publicationMeta)
   const description = displayDescription(publicationMeta)
-  const imageUrl = meta.branding?.logoUrl
-    ? `${options.siteOrigin}/api/flipbooks/${meta.id}/logo`
-    : ''
+  const imageUrl = flipbookCoverImageUrl(options.siteOrigin, meta.id)
   const publicMeta = toPublicMeta(meta)
   const noindex = shouldNoindexFlipbook(publicMeta)
 
@@ -39,14 +43,14 @@ export function buildShareMetaTags(
     metaTag('name', 'description', description),
     metaTag('property', 'og:title', title),
     metaTag('property', 'og:description', description),
-    metaTag('property', 'og:type', 'website'),
+    metaTag('property', 'og:type', 'article'),
     metaTag('property', 'og:url', options.canonicalUrl),
     metaTag('property', 'og:site_name', SITE_NAME),
-    metaTag('name', 'twitter:card', imageUrl ? 'summary_large_image' : 'summary'),
+    metaTag('property', 'og:image', imageUrl),
+    metaTag('name', 'twitter:card', 'summary_large_image'),
     metaTag('name', 'twitter:title', title),
     metaTag('name', 'twitter:description', description),
-    imageUrl ? metaTag('property', 'og:image', imageUrl) : '',
-    imageUrl ? metaTag('name', 'twitter:image', imageUrl) : '',
+    metaTag('name', 'twitter:image', imageUrl),
   ]
     .filter(Boolean)
     .join('\n    ')

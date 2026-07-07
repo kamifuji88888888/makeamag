@@ -7,11 +7,13 @@ export function createLocalStorage(dataDir: string): StorageProvider {
   const pdfDir = path.join(dataDir, 'pdfs')
   const metaDir = path.join(dataDir, 'meta')
   const logoDir = path.join(dataDir, 'logos')
+  const coverDir = path.join(dataDir, 'covers')
 
   async function ensureDirs() {
     await fs.mkdir(pdfDir, { recursive: true })
     await fs.mkdir(metaDir, { recursive: true })
     await fs.mkdir(logoDir, { recursive: true })
+    await fs.mkdir(coverDir, { recursive: true })
   }
 
   function logoPath(id: string) {
@@ -20,6 +22,14 @@ export function createLocalStorage(dataDir: string): StorageProvider {
 
   function logoMetaPath(id: string) {
     return path.join(logoDir, `${id}.meta.json`)
+  }
+
+  function coverPath(id: string) {
+    return path.join(coverDir, `${id}.cover`)
+  }
+
+  function coverMetaPath(id: string) {
+    return path.join(coverDir, `${id}.meta.json`)
   }
 
   return {
@@ -100,6 +110,29 @@ export function createLocalStorage(dataDir: string): StorageProvider {
     async deleteLogo(id) {
       await fs.rm(logoPath(id), { force: true })
       await fs.rm(logoMetaPath(id), { force: true })
+    },
+
+    async saveCover(id, buffer, contentType) {
+      await ensureDirs()
+      await fs.writeFile(coverPath(id), buffer)
+      await fs.writeFile(coverMetaPath(id), JSON.stringify({ contentType }))
+      return `${id}.cover`
+    },
+
+    async readCover(id) {
+      try {
+        const metaRaw = await fs.readFile(coverMetaPath(id), 'utf-8')
+        const meta = JSON.parse(metaRaw) as { contentType: string }
+        const buffer = await fs.readFile(coverPath(id))
+        return { buffer, contentType: meta.contentType }
+      } catch {
+        return null
+      }
+    },
+
+    async deleteCover(id) {
+      await fs.rm(coverPath(id), { force: true })
+      await fs.rm(coverMetaPath(id), { force: true })
     },
   }
 }

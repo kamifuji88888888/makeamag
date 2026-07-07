@@ -468,6 +468,10 @@ export function displayTitle(meta: Pick<FlipbookPublicMeta, 'fileName' | 'public
   return meta.publication.title || meta.fileName.replace(/\.pdf$/i, '')
 }
 
+export function flipbookCoverImageUrl(siteOrigin: string, flipbookId: string): string {
+  return `${siteOrigin.replace(/\/$/, '')}/api/flipbooks/${flipbookId}/cover`
+}
+
 export function displayDescription(
   meta: Pick<FlipbookPublicMeta, 'fileName' | 'publication'>,
 ): string {

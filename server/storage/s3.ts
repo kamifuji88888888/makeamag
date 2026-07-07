@@ -24,6 +24,14 @@ function metaKey(id: string) {
   return `flipbooks/${id}/meta.json`
 }
 
+function coverKey(id: string) {
+  return `flipbooks/${id}/cover`
+}
+
+function coverMetaSidecar(id: string) {
+  return `flipbooks/${id}/cover-meta.json`
+}
+
 export function createS3Storage(): StorageProvider {
   const bucket = process.env.S3_BUCKET
   if (!bucket) {
@@ -207,6 +215,70 @@ export function createS3Storage(): StorageProvider {
         new PutObjectCommand({
           Bucket: bucket,
           Key: logoMetaSidecar(id),
+          Body: JSON.stringify({ contentType: '' }),
+          ContentType: 'application/json',
+        }),
+      )
+    },
+
+    async saveCover(id, buffer, contentType) {
+      await client.send(
+        new PutObjectCommand({
+          Bucket: bucket,
+          Key: coverKey(id),
+          Body: buffer,
+          ContentType: contentType,
+        }),
+      )
+      await client.send(
+        new PutObjectCommand({
+          Bucket: bucket,
+          Key: coverMetaSidecar(id),
+          Body: JSON.stringify({ contentType }),
+          ContentType: 'application/json',
+        }),
+      )
+      return coverKey(id)
+    },
+
+    async readCover(id) {
+      try {
+        const metaResponse = await client.send(
+          new GetObjectCommand({
+            Bucket: bucket,
+            Key: coverMetaSidecar(id),
+          }),
+        )
+        const metaRaw = await metaResponse.Body?.transformToString()
+        if (!metaRaw) return null
+        const meta = JSON.parse(metaRaw) as { contentType: string }
+
+        const response = await client.send(
+          new GetObjectCommand({
+            Bucket: bucket,
+            Key: coverKey(id),
+          }),
+        )
+        const bytes = await response.Body?.transformToByteArray()
+        if (!bytes) return null
+        return { buffer: Buffer.from(bytes), contentType: meta.contentType }
+      } catch {
+        return null
+      }
+    },
+
+    async deleteCover(id) {
+      await client.send(
+        new PutObjectCommand({
+          Bucket: bucket,
+          Key: coverKey(id),
+          Body: Buffer.alloc(0),
+        }),
+      )
+      await client.send(
+        new PutObjectCommand({
+          Bucket: bucket,
+          Key: coverMetaSidecar(id),
           Body: JSON.stringify({ contentType: '' }),
           ContentType: 'application/json',
         }),

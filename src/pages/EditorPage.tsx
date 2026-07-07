@@ -31,12 +31,13 @@ import {
   startStripeConnect,
   unlockFlipbook,
   updateFlipbook,
+  uploadFlipbookCover,
   uploadFlipbookLogo,
 } from '../lib/api'
 import type { LibraryEntry } from '../lib/libraryStorage'
 import { useFlipbookLibrary } from '../hooks/useFlipbookLibrary'
 import { extractPdfOutline, renderPdfFromBuffer, renderPdfToImages } from '../lib/pdfRenderer'
-import { createThumbnailFromDataUrl } from '../lib/thumbnail'
+import { createThumbnailFromDataUrl, createShareCoverFromDataUrl, dataUrlToBlob } from '../lib/thumbnail'
 import { FlipbookLibrary } from '../components/FlipbookLibrary'
 import { FlipbookViewer } from '../components/FlipbookViewer'
 import { LoadingProgress } from '../components/LoadingProgress'
@@ -105,6 +106,13 @@ function defaultPublication(fileName: string): PublicationInfo {
     ...DEFAULT_PUBLICATION,
     title: fileName.replace(/\.pdf$/i, ''),
   }
+}
+
+async function syncShareCover(flipbookId: string, coverDataUrl: string | undefined) {
+  if (!coverDataUrl) return
+  const jpegDataUrl = await createShareCoverFromDataUrl(coverDataUrl)
+  const blob = await dataUrlToBlob(jpegDataUrl)
+  await uploadFlipbookCover(flipbookId, blob)
 }
 
 function publisherPayload(state: ReadyState, planId: PlanId) {
@@ -679,6 +687,7 @@ export function EditorPage() {
             ...publisherPayload(state, plan.planId),
             ...(password ? { password } : {}),
           })
+          await syncShareCover(state.flipbookId, state.images[0])
           setState({
             ...state,
             shareUrl: getShareUrl(state.flipbookId, state.branding),
@@ -698,6 +707,7 @@ export function EditorPage() {
             billingAccountId: getBillingAccountId(),
             ...publisherPayload(state, plan.planId),
           })
+          await syncShareCover(meta.id, state.images[0])
           library.markPublished(state.libraryEntryId, {
             id: meta.id,
             fileName: meta.fileName,

@@ -157,6 +157,18 @@ const logoUpload = multer({
   },
 })
 
+const coverUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 4 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (['image/png', 'image/jpeg', 'image/webp'].includes(file.mimetype)) {
+      cb(null, true)
+    } else {
+      cb(new Error('Cover must be PNG, JPG, or WebP'))
+    }
+  },
+})
+
 function canEditFlipbook(
   meta: FlipbookStoredMeta,
   session: ReturnType<typeof readSessionFromRequest>,
@@ -1125,6 +1137,48 @@ app.get('/api/flipbooks/:id/logo', async (req, res) => {
   res.send(logo.buffer)
 })
 
+app.post('/api/flipbooks/:id/cover', coverUpload.single('cover'), async (req, res) => {
+  const meta = await storage.readMeta(req.params.id)
+  if (!meta) {
+    res.status(404).json({ error: 'Flipbook not found' })
+    return
+  }
+
+  const session = readSessionFromRequest(req)
+  if (!canEditFlipbook(meta, session)) {
+    res.status(403).json({ error: 'You do not have permission to edit this flipbook' })
+    return
+  }
+
+  if (!req.file) {
+    res.status(400).json({ error: 'Cover image is required' })
+    return
+  }
+
+  await storage.saveCover(meta.id, req.file.buffer, req.file.mimetype)
+  res.json({ ok: true, coverUrl: `/api/flipbooks/${meta.id}/cover` })
+})
+
+app.get('/api/flipbooks/:id/cover', async (req, res) => {
+  const cover = await storage.readCover(req.params.id)
+  if (cover) {
+    res.setHeader('Content-Type', cover.contentType)
+    res.setHeader('Cache-Control', 'public, max-age=86400')
+    res.send(cover.buffer)
+    return
+  }
+
+  const logo = await storage.readLogo(req.params.id)
+  if (logo) {
+    res.setHeader('Content-Type', logo.contentType)
+    res.setHeader('Cache-Control', 'public, max-age=3600')
+    res.send(logo.buffer)
+    return
+  }
+
+  res.status(404).json({ error: 'Cover not found' })
+})
+
 app.post('/api/flipbooks/:id/events', async (req, res) => {
   const meta = await storage.readMeta(req.params.id)
   if (!meta) {
@@ -1192,7 +1246,7 @@ if (isProduction) {
     }
 
     try {
-      const meta = await storage.loadMeta(flipbookId)
+      const meta = await storage.readMeta(flipbookId)
       if (meta && indexHtmlTemplate) {
         const configuredOrigin = (process.env.SERVER_URL ?? process.env.CLIENT_URL ?? '').replace(
           /\/$/,

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { PasswordInput } from '../components/PasswordInput'
 import type { BrandingConfig, FlipbookVisibility, PublicationInfo } from '../../shared/flipbook'
 import { displayTitle } from '../../shared/flipbook'
-import { getEmbedCode, getShareUrl } from '../lib/api'
+import { getBrandedReaderUrl, getEmbedCode, getShareCoverUrl, getShareUrl } from '../lib/api'
 import { createQrCodeDataUrl, downloadDataUrl } from '../lib/qrCode'
 
 interface ShareDialogProps {
@@ -46,6 +46,8 @@ export function ShareDialog({
     () => getShareUrl(flipbookId, branding) || initialShareUrl,
     [branding, flipbookId, initialShareUrl],
   )
+  const brandedReaderUrl = useMemo(() => getBrandedReaderUrl(branding), [branding])
+  const coverPreviewUrl = getShareCoverUrl(flipbookId)
 
   const embedTitle = displayTitle({ fileName, publication })
   const qrFilename = `${embedTitle.replace(/[^\w.-]+/g, '-').toLowerCase()}-qr.png`
@@ -131,11 +133,37 @@ export function ShareDialog({
         </div>
 
         <div className="space-y-6 px-6 py-6">
-          {branding.customDomain && (
-            <p className="rounded-xl bg-apple-blue/8 px-4 py-3 text-sm text-apple-blue">
-              Custom domain active — share links use https://{branding.customDomain}/
-            </p>
+          {branding.customDomain && brandedReaderUrl && (
+            <div className="rounded-xl bg-apple-blue/8 px-4 py-3 text-sm text-apple-blue">
+              <p>
+                Branded domain:{' '}
+                <a href={brandedReaderUrl} target="_blank" rel="noopener noreferrer" className="font-medium underline">
+                  {brandedReaderUrl}
+                </a>
+              </p>
+              <p className="mt-1 text-apple-muted">
+                The full-screen share link below is unique to this issue and includes its cover in link previews.
+              </p>
+            </div>
           )}
+
+          <div>
+            <p className="apple-section-label mb-3">Link preview</p>
+            <div className="flex gap-3 rounded-xl border border-apple-border-light bg-apple-gray/40 p-3">
+              <img
+                src={coverPreviewUrl}
+                alt={`Cover preview for ${embedTitle}`}
+                className="h-24 w-16 shrink-0 rounded-md border border-apple-border-light bg-white object-cover"
+              />
+              <div className="min-w-0 text-left">
+                <p className="truncate text-sm font-medium text-apple-text">{embedTitle}</p>
+                <p className="mt-1 truncate text-xs text-apple-muted">{shareUrl}</p>
+                <p className="mt-2 text-xs text-apple-muted">
+                  This cover appears when you share the link in iMessage, Slack, LinkedIn, and other apps.
+                </p>
+              </div>
+            </div>
+          </div>
 
           <div>
             <p className="apple-section-label mb-3">Who can find this</p>
@@ -171,6 +199,9 @@ export function ShareDialog({
 
           <div>
             <p className="apple-section-label mb-3">Full-screen link</p>
+            <p className="mb-3 text-xs text-apple-muted">
+              Opens only this issue — not your publisher library or account.
+            </p>
             <div className="flex gap-2">
               <input readOnly value={shareUrl} className="apple-input text-sm" />
               <button type="button" onClick={handleCopyLink} className="apple-btn-primary shrink-0">

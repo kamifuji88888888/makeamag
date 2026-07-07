@@ -1,12 +1,11 @@
 import { useEffect } from 'react'
-import type { BrandingConfig, FlipbookVisibility, PublicationInfo } from '../../shared/flipbook'
-import { displayDescription, displayTitle, shouldNoindexFlipbook } from '../../shared/flipbook'
+import type { FlipbookVisibility, PublicationInfo } from '../../shared/flipbook'
+import { displayDescription, displayTitle, flipbookCoverImageUrl, shouldNoindexFlipbook } from '../../shared/flipbook'
 
 interface FlipbookDocumentMetaInput {
   fileName: string
   publication: PublicationInfo
   flipbookId?: string | null
-  branding?: BrandingConfig
   pagePath?: string
   enabled?: boolean
   visibility?: FlipbookVisibility
@@ -34,7 +33,6 @@ export function useFlipbookDocumentMeta({
   fileName,
   publication,
   flipbookId,
-  branding,
   pagePath,
   enabled = true,
   visibility = 'public',
@@ -57,7 +55,7 @@ export function useFlipbookDocumentMeta({
     upsertMetaTag('name', 'description', description)
     upsertMetaTag('property', 'og:title', title)
     upsertMetaTag('property', 'og:description', description)
-    upsertMetaTag('property', 'og:type', 'website')
+    upsertMetaTag('property', 'og:type', 'article')
     upsertMetaTag('property', 'og:url', url)
     upsertMetaTag('name', 'twitter:card', 'summary_large_image')
     upsertMetaTag('name', 'twitter:title', title)
@@ -69,11 +67,8 @@ export function useFlipbookDocumentMeta({
       removeMetaTag('name', 'robots')
     }
 
-    const imageUrl =
-      flipbookId && branding?.logoUrl
-        ? `${window.location.origin}/api/flipbooks/${flipbookId}/logo`
-        : ''
-    if (imageUrl) {
+    if (flipbookId) {
+      const imageUrl = flipbookCoverImageUrl(window.location.origin, flipbookId)
       upsertMetaTag('property', 'og:image', imageUrl)
       upsertMetaTag('name', 'twitter:image', imageUrl)
     }
@@ -83,7 +78,6 @@ export function useFlipbookDocumentMeta({
       removeMetaTag('name', 'robots')
     }
   }, [
-    branding?.logoUrl,
     enabled,
     fileName,
     flipbookId,

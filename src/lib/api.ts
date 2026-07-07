@@ -14,6 +14,7 @@ import type {
   TocEntry,
   VideoEmbed,
 } from '../../shared/flipbook'
+import { flipbookCoverImageUrl } from '../../shared/flipbook'
 import { getBrandedShareOrigin } from './branding'
 
 export interface PublisherUpdate {
@@ -419,23 +420,40 @@ export async function deleteFlipbookLogo(id: string): Promise<FlipbookPublicMeta
   return response.json() as Promise<FlipbookPublicMeta>
 }
 
-export function getShareUrl(id: string, branding?: BrandingConfig): string {
-  const brandedOrigin = branding ? getBrandedShareOrigin(branding) : null
-  if (brandedOrigin) {
-    return `${brandedOrigin}/`
+export async function uploadFlipbookCover(id: string, cover: Blob): Promise<void> {
+  const formData = new FormData()
+  formData.append('cover', cover, 'cover.jpg')
+  const response = await fetch(`${API_BASE}/flipbooks/${id}/cover`, {
+    method: 'POST',
+    credentials: 'include',
+    body: formData,
+  })
+
+  if (!response.ok) {
+    const body = (await response.json().catch(() => ({}))) as { error?: string }
+    throw new Error(body.error ?? 'Failed to upload cover image')
   }
+}
+
+export function getShareUrl(id: string, _branding?: BrandingConfig): string {
   return `${window.location.origin}/view/${id}`
+}
+
+export function getBrandedReaderUrl(branding?: BrandingConfig): string | null {
+  const origin = branding ? getBrandedShareOrigin(branding) : null
+  return origin ? `${origin}/` : null
+}
+
+export function getShareCoverUrl(flipbookId: string): string {
+  return flipbookCoverImageUrl(window.location.origin, flipbookId)
 }
 
 export function getSharePageUrl(
   id: string,
   pageIndex: number,
-  branding?: BrandingConfig,
+  _branding?: BrandingConfig,
 ): string {
-  const brandedOrigin = branding ? getBrandedShareOrigin(branding) : null
-  const url = brandedOrigin
-    ? new URL(`${brandedOrigin}/`)
-    : new URL(`${window.location.origin}/view/${id}`)
+  const url = new URL(`${window.location.origin}/view/${id}`)
   url.searchParams.set('page', String(pageIndex + 1))
   return url.toString()
 }
