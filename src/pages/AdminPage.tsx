@@ -16,20 +16,27 @@ export function AdminPage() {
   const [inputSecret, setInputSecret] = useState('')
   const [metrics, setMetrics] = useState<AdminMetricsSummary | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [sessionAuthorized, setSessionAuthorized] = useState(false)
 
-  async function loadMetrics(nextSecret: string) {
+  async function loadMetrics(nextSecret?: string) {
     setLoading(true)
     setError(null)
     try {
       const data = await fetchAdminMetrics(nextSecret)
       setMetrics(data)
-      setSecret(nextSecret)
-      setStoredAdminSecret(nextSecret)
+      if (nextSecret) {
+        setSecret(nextSecret)
+        setStoredAdminSecret(nextSecret)
+        setSessionAuthorized(false)
+      } else {
+        setSessionAuthorized(true)
+      }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to load metrics'
       setError(message)
       setMetrics(null)
+      setSessionAuthorized(false)
       if (message === 'Invalid admin secret') {
         clearStoredAdminSecret()
         setSecret('')
@@ -40,12 +47,20 @@ export function AdminPage() {
   }
 
   useEffect(() => {
-    if (!secret) return
-    void loadMetrics(secret)
+    const stored = getStoredAdminSecret()
+    void loadMetrics(stored ?? undefined)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  if (!secret) {
+  if (loading && !metrics) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-apple-bg px-6 text-sm text-apple-muted">
+        Loading admin metrics…
+      </div>
+    )
+  }
+
+  if (!metrics && !sessionAuthorized) {
     return (
       <div className="min-h-screen bg-apple-bg px-6 py-16">
         <div className="mx-auto max-w-md">
@@ -54,8 +69,15 @@ export function AdminPage() {
           </Link>
           <h1 className="apple-hero-title mt-6 text-[2rem]">Admin metrics</h1>
           <p className="mt-3 text-sm text-apple-muted">
-            Enter your <code className="rounded bg-apple-gray px-1">ADMIN_SECRET</code> to view usage
-            by billing account.
+            Sign in with a founder admin account, or enter your{' '}
+            <code className="rounded bg-apple-gray px-1">ADMIN_SECRET</code> to view usage by billing
+            account.
+          </p>
+          <p className="mt-3 text-sm text-apple-muted">
+            <Link to="/auth" className="apple-link">
+              Sign in first
+            </Link>{' '}
+            if you use a founder admin email.
           </p>
           <form
             className="mt-6 space-y-4"

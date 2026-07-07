@@ -4,6 +4,7 @@ import type { AdminAccountMetric, AdminMetricsSummary } from '../shared/adminMet
 import type { BillingRecord } from './billing.js'
 import type { StorageProvider } from './storage/types.js'
 import type { PlanId } from '../shared/plans.js'
+import { isPlanOverrideEmail } from './founderAccess.js'
 
 const UNASSIGNED_ACCOUNT = '__unassigned__'
 
@@ -121,9 +122,14 @@ export async function buildAdminMetrics(
   }
 }
 
-export function isAdminAuthorized(authHeader: string | undefined, adminSecret: string | undefined): boolean {
+export function isAdminAuthorized(
+  authHeader: string | undefined,
+  adminSecret: string | undefined,
+  sessionEmail?: string | null,
+): boolean {
   const secret = adminSecret?.trim()
-  if (!secret) return false
-  if (!authHeader?.startsWith('Bearer ')) return false
-  return authHeader.slice(7) === secret
+  if (secret && authHeader?.startsWith('Bearer ') && authHeader.slice(7) === secret) {
+    return true
+  }
+  return isPlanOverrideEmail(sessionEmail)
 }

@@ -839,7 +839,8 @@ app.patch('/api/flipbooks/:id', async (req, res) => {
 })
 
 app.get('/api/admin/metrics', async (req, res) => {
-  if (!isAdminAuthorized(req.headers.authorization, process.env.ADMIN_SECRET)) {
+  const session = readSessionFromRequest(req)
+  if (!isAdminAuthorized(req.headers.authorization, process.env.ADMIN_SECRET, session?.email)) {
     res.status(401).json({ error: 'Unauthorized' })
     return
   }
@@ -854,7 +855,8 @@ app.get('/api/admin/metrics', async (req, res) => {
 })
 
 app.post('/api/admin/set-password', async (req, res) => {
-  if (!isAdminAuthorized(req.headers.authorization, process.env.ADMIN_SECRET)) {
+  const session = readSessionFromRequest(req)
+  if (!isAdminAuthorized(req.headers.authorization, process.env.ADMIN_SECRET, session?.email)) {
     res.status(401).json({ error: 'Unauthorized' })
     return
   }

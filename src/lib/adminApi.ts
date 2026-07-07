@@ -19,9 +19,11 @@ export function clearStoredAdminSecret(): void {
   sessionStorage.removeItem(ADMIN_SECRET_KEY)
 }
 
-export async function fetchAdminMetrics(secret: string): Promise<AdminMetricsSummary> {
+export async function fetchAdminMetrics(secret?: string): Promise<AdminMetricsSummary> {
+  const headers: HeadersInit = secret ? { Authorization: `Bearer ${secret}` } : {}
   const response = await fetch('/api/admin/metrics', {
-    headers: { Authorization: `Bearer ${secret}` },
+    credentials: 'include',
+    headers,
   })
 
   if (response.status === 401) {
