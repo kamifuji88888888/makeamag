@@ -79,6 +79,14 @@ body {
   display: none !important;
 }
 
+@media (orientation: landscape) and (max-height: 520px) {
+  .apple-flipbook-frame--spread .flipbook-page img[data-spine='left'],
+  .apple-flipbook-frame--spread .flipbook-page img[data-spine='right'] {
+    object-fit: contain;
+    object-position: center;
+  }
+}
+
 .apple-nav {
   position: sticky;
   top: 0;

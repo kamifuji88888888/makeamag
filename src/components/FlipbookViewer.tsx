@@ -4,6 +4,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type RefObject,
 } from 'react'
 import HTMLFlipBook from 'react-pageflip'
 import type { HTMLFlipBookRef } from 'react-pageflip'
@@ -101,50 +102,35 @@ interface FlipbookViewerProps {
   onUpgradeRequest?: (feature: PlanFeature, label: string) => void
 }
 
-function estimateViewerChrome(mode: 'editor' | 'shared' | 'embed', hideChrome: boolean): number {
-  if (hideChrome) {
-    return mode === 'embed' ? 24 : 36
-  }
-
-  const gapTotal = 24 // gap-1.5 between stacked toolbar sections
-
-  if (mode === 'editor') {
-    return 16 + 48 + 28 + 40 + 112 + gapTotal + 24
-  }
-
-  if (mode === 'shared') {
-    return 16 + 40 + 28 + 40 + 56 + 24 + gapTotal + 20
-  }
-
-  // embed
-  return 16 + 28 + 40 + 48 + gapTotal + 12
-}
-
 function useFlipbookDimensions(
+  stageRef: RefObject<HTMLElement | null>,
   aspectRatio: number,
   mode: 'editor' | 'shared' | 'embed',
   spreadView: boolean,
   singlePageLayout: boolean,
-  hideChrome: boolean,
 ) {
   const [dims, setDims] = useState({ width: 500, height: 700 })
 
   useEffect(() => {
+    const stage = stageRef.current
+    if (!stage) return
+
+    const maxSinglePageWidth = mode === 'embed' ? 1400 : mode === 'shared' ? 1200 : 960
+
     function update() {
-      const isEmbed = mode === 'embed'
-      const isShared = mode === 'shared'
-      const padding = isEmbed ? 12 : 16
-      const chrome = estimateViewerChrome(mode, hideChrome)
-      const maxHeight = Math.max(240, window.innerHeight - chrome)
+      const element = stageRef.current
+      if (!element) return
+
+      const availableWidth = Math.max(0, element.clientWidth - 8)
+      const availableHeight = Math.max(0, element.clientHeight - 8)
+      if (availableWidth < 120 || availableHeight < 120) return
 
       if (spreadView && singlePageLayout) {
-        // Cover / back cover: one centered page, as tall as the viewport allows.
-        const maxWidth = window.innerWidth - padding * 2
-        let pageHeight = Math.floor(maxHeight)
+        let pageHeight = Math.floor(availableHeight)
         let pageWidth = Math.floor(pageHeight * aspectRatio)
 
-        if (pageWidth > maxWidth) {
-          pageWidth = Math.floor(maxWidth)
+        if (pageWidth > availableWidth) {
+          pageWidth = Math.floor(availableWidth)
           pageHeight = Math.floor(pageWidth / aspectRatio)
         }
 
@@ -156,19 +142,21 @@ function useFlipbookDimensions(
       }
 
       const maxTotalWidth = spreadView
-        ? window.innerWidth - padding * 2
-        : Math.min(
-            window.innerWidth - padding * 2,
-            isEmbed ? 1400 : isShared ? 1200 : 960,
-          )
+        ? availableWidth
+        : Math.min(availableWidth, maxSinglePageWidth)
 
       if (spreadView) {
-        let pageHeight = Math.floor(maxHeight)
+        let pageHeight = Math.floor(availableHeight)
         let pageWidth = Math.floor(pageHeight * aspectRatio)
 
         if (pageWidth * 2 > maxTotalWidth) {
           pageWidth = Math.floor(maxTotalWidth / 2)
           pageHeight = Math.floor(pageWidth / aspectRatio)
+        }
+
+        if (pageHeight > availableHeight) {
+          pageHeight = Math.floor(availableHeight)
+          pageWidth = Math.floor(pageHeight * aspectRatio)
         }
 
         setDims({
@@ -181,8 +169,8 @@ function useFlipbookDimensions(
       let pageWidth = maxTotalWidth
       let pageHeight = pageWidth / aspectRatio
 
-      if (pageHeight > maxHeight) {
-        pageHeight = maxHeight
+      if (pageHeight > availableHeight) {
+        pageHeight = availableHeight
         pageWidth = pageHeight * aspectRatio
       }
 
@@ -192,10 +180,15 @@ function useFlipbookDimensions(
       })
     }
 
+    const observer = new ResizeObserver(update)
+    observer.observe(stage)
     update()
-    window.addEventListener('resize', update)
-    return () => window.removeEventListener('resize', update)
-  }, [aspectRatio, hideChrome, mode, singlePageLayout, spreadView])
+    window.addEventListener('orientationchange', update)
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('orientationchange', update)
+    }
+  }, [aspectRatio, mode, singlePageLayout, spreadView, stageRef])
 
   return dims
 }
@@ -271,6 +264,7 @@ export function FlipbookViewer({
 }: FlipbookViewerProps) {
   const bookRef = useRef<HTMLFlipBookRef>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const stageRef = useRef<HTMLDivElement>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [showPaywall, setShowPaywall] = useState(false)
   const [showLeadCapture, setShowLeadCapture] = useState(false)
@@ -331,11 +325,11 @@ export function FlipbookViewer({
     spreadView && totalPages > 0 && (currentPage === 1 || currentPage === totalPages)
   const usePortraitLayout = !spreadView || isCoverOrBack
   const { width, height } = useFlipbookDimensions(
+    stageRef,
     aspectRatio,
     mode,
     spreadView,
     usePortraitLayout,
-    hideChrome,
   )
   const bookWidth = usePortraitLayout ? width : width * 2
   const {
@@ -698,7 +692,7 @@ export function FlipbookViewer({
         )}
 
         {isShared && !hideChrome && (
-          <div className="w-full shrink-0">
+          <div className="w-full shrink-0 max-md:landscape:hidden">
             <PublicationHeader fileName={fileName} publication={publication} compact />
           </div>
         )}
@@ -721,11 +715,11 @@ export function FlipbookViewer({
         )}
 
         <div
+          ref={stageRef}
           className={[
-            'flipbook-zoom-viewport flex min-h-0 flex-1 items-center justify-center',
+            'flipbook-zoom-viewport flex min-h-0 w-full flex-1 items-center justify-center',
             isZoomed ? 'flipbook-zoom-viewport--active' : '',
           ].join(' ')}
-          style={{ width: bookWidth, height }}
           {...viewportHandlers}
         >
           <div className="flipbook-zoom-layer" style={viewportStyle}>
@@ -769,8 +763,8 @@ export function FlipbookViewer({
         </div>
 
         {!hideChrome && (
-          <div className="flex w-full max-w-[980px] shrink-0 flex-col items-center gap-1.5">
-            <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 px-1">
+          <div className="flex w-full max-w-[980px] shrink-0 flex-col items-center gap-1.5 landscape:max-md:gap-1">
+            <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 px-1 landscape:max-md:hidden">
               <p className="text-xs text-apple-muted">
                 Drag corners to flip · Arrow keys to navigate
                 {isZoomed && ' · Drag to pan'}
