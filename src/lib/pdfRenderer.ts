@@ -48,7 +48,7 @@ export interface RenderPdfOptions {
 }
 
 const MAX_RENDER_WIDTH = 1400
-const MIN_READER_RENDER_WIDTH = 480
+const MIN_READER_RENDER_WIDTH = 1200
 const READER_MAX_DPR = 2
 
 export function getReaderMaxRenderWidth(): number {
@@ -63,10 +63,9 @@ export function getReaderMaxRenderWidth(): number {
 }
 
 export function getReaderRenderOptions(): RenderPdfOptions {
-  const maxRenderWidth = getReaderMaxRenderWidth()
   return {
-    maxRenderWidth,
-    jpegQuality: maxRenderWidth < 900 ? 0.82 : 0.88,
+    maxRenderWidth: getReaderMaxRenderWidth(),
+    jpegQuality: 0.88,
   }
 }
 
@@ -79,19 +78,31 @@ async function loadPdf(data: ArrayBuffer) {
 }
 
 function createPageCanvas(pageViewport: { width: number; height: number }) {
-  const canvas = document.createElement('canvas')
-  canvas.width = Math.max(1, Math.floor(pageViewport.width))
-  canvas.height = Math.max(1, Math.floor(pageViewport.height))
+  const width = Math.max(1, Math.floor(pageViewport.width))
+  const height = Math.max(1, Math.floor(pageViewport.height))
 
-  const context = canvas.getContext('2d', { alpha: false })
-  if (!context) {
+  const renderCanvas = document.createElement('canvas')
+  renderCanvas.width = width
+  renderCanvas.height = height
+
+  const renderContext = renderCanvas.getContext('2d', { alpha: true })
+  if (!renderContext) {
     throw new Error('Could not create canvas context for PDF rendering')
   }
 
-  context.fillStyle = '#ffffff'
-  context.fillRect(0, 0, canvas.width, canvas.height)
+  const outputCanvas = document.createElement('canvas')
+  outputCanvas.width = width
+  outputCanvas.height = height
 
-  return { canvas, context }
+  const outputContext = outputCanvas.getContext('2d', { alpha: false })
+  if (!outputContext) {
+    throw new Error('Could not create output canvas for PDF rendering')
+  }
+
+  outputContext.fillStyle = '#ffffff'
+  outputContext.fillRect(0, 0, width, height)
+
+  return { renderCanvas, renderContext, outputCanvas, outputContext }
 }
 
 function canvasToDataUrl(canvas: HTMLCanvasElement, jpegQuality = 0.88): string {
@@ -108,20 +119,22 @@ async function renderPageToDataUrl(
   jpegQuality: number,
 ): Promise<string> {
   const pdfjsLib = await getPdfJs()
-  const { canvas, context } = createPageCanvas(pageViewport)
+  const { renderCanvas, renderContext, outputCanvas, outputContext } = createPageCanvas(pageViewport)
 
   const renderTask = page.render({
-    canvas,
-    canvasContext: context,
+    canvas: renderCanvas,
+    canvasContext: renderContext,
     viewport: pageViewport,
-    intent: 'display',
+    intent: 'print',
     annotationMode: pdfjsLib.AnnotationMode.DISABLE,
-    background: '#ffffff',
+    background: 'rgba(0, 0, 0, 0)',
   })
 
   await renderTask.promise
 
-  return canvasToDataUrl(canvas, jpegQuality)
+  outputContext.drawImage(renderCanvas, 0, 0)
+
+  return canvasToDataUrl(outputCanvas, jpegQuality)
 }
 
 async function destroyPdf(pdf: PdfJs.PDFDocumentProxy) {
