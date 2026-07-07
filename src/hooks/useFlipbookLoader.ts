@@ -24,7 +24,7 @@ import {
   unlockFlipbook,
   unlockMonetization,
 } from '../lib/api'
-import { renderPdfFromBuffer } from '../lib/pdfRenderer'
+import { getReaderRenderOptions, renderPdfFromBuffer } from '../lib/pdfRenderer'
 
 export type FlipbookLoadState =
   | { status: 'locked'; meta: FlipbookPublicMeta }
@@ -65,9 +65,13 @@ export function useFlipbookLoader(id: string | undefined) {
 
     try {
       const buffer = await fetchFlipbookPdf(flipbookId)
-      const result = await renderPdfFromBuffer(buffer, (progress) => {
-        setState({ status: 'loading', progress, fileName: meta.fileName })
-      })
+      const result = await renderPdfFromBuffer(
+        buffer,
+        (progress) => {
+          setState({ status: 'loading', progress, fileName: meta.fileName })
+        },
+        getReaderRenderOptions(),
+      )
 
       const monetization = normalizeMonetization(meta.monetization)
       const leadCapture = normalizeLeadCapture(meta.leadCapture)

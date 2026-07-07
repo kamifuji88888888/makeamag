@@ -42,7 +42,33 @@ export interface PdfRenderResult {
   pageTexts: string[]
 }
 
+export interface RenderPdfOptions {
+  maxRenderWidth?: number
+  jpegQuality?: number
+}
+
 const MAX_RENDER_WIDTH = 1400
+const MIN_READER_RENDER_WIDTH = 480
+const READER_MAX_DPR = 2
+
+export function getReaderMaxRenderWidth(): number {
+  if (typeof window === 'undefined') return MAX_RENDER_WIDTH
+
+  const viewportWidth = window.innerWidth || 390
+  const dpr = Math.min(window.devicePixelRatio || 1, READER_MAX_DPR)
+  return Math.max(
+    MIN_READER_RENDER_WIDTH,
+    Math.min(MAX_RENDER_WIDTH, Math.ceil(viewportWidth * dpr)),
+  )
+}
+
+export function getReaderRenderOptions(): RenderPdfOptions {
+  const maxRenderWidth = getReaderMaxRenderWidth()
+  return {
+    maxRenderWidth,
+    jpegQuality: maxRenderWidth < 900 ? 0.82 : 0.88,
+  }
+}
 
 async function loadPdf(data: ArrayBuffer) {
   const pdfjsLib = await getPdfJs()
@@ -68,8 +94,8 @@ function createPageCanvas(pageViewport: { width: number; height: number }) {
   return { canvas, context }
 }
 
-function canvasToDataUrl(canvas: HTMLCanvasElement): string {
-  const jpeg = canvas.toDataURL('image/jpeg', 0.88)
+function canvasToDataUrl(canvas: HTMLCanvasElement, jpegQuality = 0.88): string {
+  const jpeg = canvas.toDataURL('image/jpeg', jpegQuality)
   if (jpeg.startsWith('data:image/jpeg')) {
     return jpeg
   }
@@ -79,6 +105,7 @@ function canvasToDataUrl(canvas: HTMLCanvasElement): string {
 async function renderPageToDataUrl(
   page: PdfJs.PDFPageProxy,
   pageViewport: ReturnType<PdfJs.PDFPageProxy['getViewport']>,
+  jpegQuality: number,
 ): Promise<string> {
   const pdfjsLib = await getPdfJs()
   const { canvas, context } = createPageCanvas(pageViewport)
@@ -94,7 +121,7 @@ async function renderPageToDataUrl(
 
   await renderTask.promise
 
-  return canvasToDataUrl(canvas)
+  return canvasToDataUrl(canvas, jpegQuality)
 }
 
 async function destroyPdf(pdf: PdfJs.PDFDocumentProxy) {
@@ -110,20 +137,23 @@ async function destroyPdf(pdf: PdfJs.PDFDocumentProxy) {
 async function renderPages(
   pdf: PdfJs.PDFDocumentProxy,
   onProgress?: (progress: number) => void,
+  options: RenderPdfOptions = {},
 ): Promise<PdfRenderResult> {
+  const maxRenderWidth = options.maxRenderWidth ?? MAX_RENDER_WIDTH
+  const jpegQuality = options.jpegQuality ?? 0.88
   const numPages = pdf.numPages
   const images: string[] = []
   const pageTexts: string[] = []
 
   const firstPage = await pdf.getPage(1)
   const baseViewport = firstPage.getViewport({ scale: 1 })
-  const scale = Math.min(2, MAX_RENDER_WIDTH / baseViewport.width)
+  const scale = Math.min(2, maxRenderWidth / baseViewport.width)
 
   for (let pageNum = 1; pageNum <= numPages; pageNum++) {
     try {
       const page = await pdf.getPage(pageNum)
       const pageViewport = page.getViewport({ scale })
-      images.push(await renderPageToDataUrl(page, pageViewport))
+      images.push(await renderPageToDataUrl(page, pageViewport, jpegQuality))
       try {
         pageTexts.push(await extractPageText(page))
       } catch {
@@ -145,18 +175,20 @@ async function renderPages(
 export async function renderPdfToImages(
   file: File,
   onProgress?: (progress: number) => void,
+  options?: RenderPdfOptions,
 ): Promise<PdfRenderResult> {
   const arrayBuffer = await file.arrayBuffer()
-  return renderPdfFromBuffer(arrayBuffer, onProgress)
+  return renderPdfFromBuffer(arrayBuffer, onProgress, options)
 }
 
 export async function renderPdfFromBuffer(
   data: ArrayBuffer,
   onProgress?: (progress: number) => void,
+  options?: RenderPdfOptions,
 ): Promise<PdfRenderResult> {
   const pdf = await loadPdf(data)
   try {
-    return await renderPages(pdf, onProgress)
+    return await renderPages(pdf, onProgress, options)
   } finally {
     await destroyPdf(pdf)
   }
@@ -165,11 +197,12 @@ export async function renderPdfFromBuffer(
 export async function renderPdfFromUrl(
   url: string,
   onProgress?: (progress: number) => void,
+  options?: RenderPdfOptions,
 ): Promise<PdfRenderResult> {
   const pdfjsLib = await getPdfJs()
   const pdf = await pdfjsLib.getDocument({ url, useSystemFonts: true }).promise
   try {
-    return await renderPages(pdf, onProgress)
+    return await renderPages(pdf, onProgress, options)
   } finally {
     await destroyPdf(pdf)
   }
