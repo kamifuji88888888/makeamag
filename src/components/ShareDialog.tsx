@@ -4,6 +4,7 @@ import { PasswordInput } from '../components/PasswordInput'
 import type { BrandingConfig, FlipbookVisibility, PublicationInfo } from '../../shared/flipbook'
 import { displayTitle } from '../../shared/flipbook'
 import { getBrandedReaderUrl, getEmbedCode, getShareCoverUrl, getShareUrl } from '../lib/api'
+import { syncShareCover } from '../lib/shareCover'
 import { createQrCodeDataUrl, downloadDataUrl } from '../lib/qrCode'
 
 interface ShareDialogProps {
@@ -19,6 +20,7 @@ interface ShareDialogProps {
   onPasswordChange: (password: string, enabled: boolean) => void
   onVisibilityChange: (visibility: FlipbookVisibility) => void
   onUpgradeRequest?: (feature: import('../../shared/plans').PlanFeature, label: string) => void
+  coverPageImage?: string
 }
 
 export function ShareDialog({
@@ -34,6 +36,7 @@ export function ShareDialog({
   onPasswordChange,
   onVisibilityChange,
   onUpgradeRequest,
+  coverPageImage,
 }: ShareDialogProps) {
   const [copied, setCopied] = useState<'link' | 'embed' | 'qr' | null>(null)
   const [passwordEnabled, setPasswordEnabled] = useState(isPasswordProtected)
@@ -41,13 +44,40 @@ export function ShareDialog({
   const [embedWidth, setEmbedWidth] = useState(800)
   const [embedHeight, setEmbedHeight] = useState(600)
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null)
+  const [coverPreviewSrc, setCoverPreviewSrc] = useState(
+    () => coverPageImage ?? getShareCoverUrl(flipbookId),
+  )
+  const [coverSyncFailed, setCoverSyncFailed] = useState(false)
 
   const shareUrl = useMemo(
     () => getShareUrl(flipbookId, branding) || initialShareUrl,
     [branding, flipbookId, initialShareUrl],
   )
   const brandedReaderUrl = useMemo(() => getBrandedReaderUrl(branding), [branding])
-  const coverPreviewUrl = getShareCoverUrl(flipbookId)
+
+  useEffect(() => {
+    if (!coverPageImage) return
+
+    let cancelled = false
+    setCoverSyncFailed(false)
+
+    void syncShareCover(flipbookId, coverPageImage)
+      .then(() => {
+        if (!cancelled) {
+          setCoverPreviewSrc(`${getShareCoverUrl(flipbookId)}?v=${Date.now()}`)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setCoverPreviewSrc(coverPageImage)
+          setCoverSyncFailed(true)
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [coverPageImage, flipbookId])
 
   const embedTitle = displayTitle({ fileName, publication })
   const qrFilename = `${embedTitle.replace(/[^\w.-]+/g, '-').toLowerCase()}-qr.png`
@@ -151,8 +181,11 @@ export function ShareDialog({
             <p className="apple-section-label mb-3">Link preview</p>
             <div className="flex gap-3 rounded-xl border border-apple-border-light bg-apple-gray/40 p-3">
               <img
-                src={coverPreviewUrl}
+                src={coverPreviewSrc}
                 alt={`Cover preview for ${embedTitle}`}
+                onError={() => {
+                  if (coverPageImage) setCoverPreviewSrc(coverPageImage)
+                }}
                 className="h-24 w-16 shrink-0 rounded-md border border-apple-border-light bg-white object-cover"
               />
               <div className="min-w-0 text-left">
@@ -161,6 +194,11 @@ export function ShareDialog({
                 <p className="mt-2 text-xs text-apple-muted">
                   This cover appears when you share the link in iMessage, Slack, LinkedIn, and other apps.
                 </p>
+                {coverSyncFailed && (
+                  <p className="mt-1 text-xs text-amber-700">
+                    Could not save the cover for link previews. The preview above is from your editor only.
+                  </p>
+                )}
               </div>
             </div>
           </div>

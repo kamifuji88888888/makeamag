@@ -380,12 +380,6 @@ export function FlipbookViewer({
   }, [bookKey])
 
   useEffect(() => {
-    if (shareUrl) {
-      setShowShareDialog(true)
-    }
-  }, [shareUrl])
-
-  useEffect(() => {
     if (wasPublishing.current && !isPublishing && shareUrl) {
       setShowShareDialog(true)
     }
@@ -982,6 +976,7 @@ export function FlipbookViewer({
           visibility={visibility}
           isPasswordProtected={isPasswordProtected}
           canPasswordProtect={canPasswordProtect}
+          coverPageImage={images[0]}
           onUpgradeRequest={onUpgradeRequest}
           onClose={() => setShowShareDialog(false)}
           onPasswordChange={handlePasswordChange}
