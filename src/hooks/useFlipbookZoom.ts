@@ -3,34 +3,64 @@ import { useCallback, useEffect, useRef, useState, type PointerEvent } from 'rea
 const MIN_ZOOM = 1
 const MAX_ZOOM = 3
 
-function clampPan(x: number, y: number, viewWidth: number, viewHeight: number, zoom: number) {
-  if (zoom <= 1) return { x: 0, y: 0 }
-  const maxX = (viewWidth * (zoom - 1)) / 2
-  const maxY = (viewHeight * (zoom - 1)) / 2
+function clampPan(
+  x: number,
+  y: number,
+  contentWidth: number,
+  contentHeight: number,
+  viewportWidth: number,
+  viewportHeight: number,
+  zoom: number,
+) {
+  if (zoom <= 1 || contentWidth <= 0 || contentHeight <= 0) {
+    return { x: 0, y: 0 }
+  }
+
+  const scaledWidth = contentWidth * zoom
+  const scaledHeight = contentHeight * zoom
+  const maxX = Math.max(0, (scaledWidth - viewportWidth) / 2)
+  const maxY = Math.max(0, (scaledHeight - viewportHeight) / 2)
+
   return {
     x: Math.max(-maxX, Math.min(maxX, x)),
     y: Math.max(-maxY, Math.min(maxY, y)),
   }
 }
 
-export function useFlipbookZoom(viewWidth: number, viewHeight: number) {
+export function useFlipbookZoom(
+  contentWidth: number,
+  contentHeight: number,
+  viewportWidth: number,
+  viewportHeight: number,
+) {
   const [zoom, setZoom] = useState(MIN_ZOOM)
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const dragging = useRef(false)
   const dragStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 })
 
   const clampedPan = useCallback(
-    (x: number, y: number, level = zoom) => clampPan(x, y, viewWidth, viewHeight, level),
-    [viewWidth, viewHeight, zoom],
+    (x: number, y: number, level = zoom) =>
+      clampPan(x, y, contentWidth, contentHeight, viewportWidth, viewportHeight, level),
+    [contentWidth, contentHeight, viewportWidth, viewportHeight, zoom],
   )
 
   const setZoomLevel = useCallback(
     (level: number) => {
       const next = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, level))
       setZoom(next)
-      setPan((current) => clampPan(current.x, current.y, viewWidth, viewHeight, next))
+      setPan((current) =>
+        clampPan(
+          current.x,
+          current.y,
+          contentWidth,
+          contentHeight,
+          viewportWidth,
+          viewportHeight,
+          next,
+        ),
+      )
     },
-    [viewWidth, viewHeight],
+    [contentWidth, contentHeight, viewportWidth, viewportHeight],
   )
 
   const resetZoom = useCallback(() => {
@@ -43,8 +73,18 @@ export function useFlipbookZoom(viewWidth: number, viewHeight: number) {
   }, [])
 
   useEffect(() => {
-    setPan((current) => clampPan(current.x, current.y, viewWidth, viewHeight, zoom))
-  }, [viewWidth, viewHeight, zoom])
+    setPan((current) =>
+      clampPan(
+        current.x,
+        current.y,
+        contentWidth,
+        contentHeight,
+        viewportWidth,
+        viewportHeight,
+        zoom,
+      ),
+    )
+  }, [contentWidth, contentHeight, viewportWidth, viewportHeight, zoom])
 
   const onPointerDown = useCallback(
     (e: PointerEvent<HTMLDivElement>) => {
@@ -77,6 +117,8 @@ export function useFlipbookZoom(viewWidth: number, viewHeight: number) {
   }, [])
 
   const viewportStyle = {
+    width: contentWidth,
+    height: contentHeight,
     transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
   }
 

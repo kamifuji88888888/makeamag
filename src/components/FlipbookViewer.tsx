@@ -112,7 +112,7 @@ function useFlipbookDimensions(
   spreadView: boolean,
   singlePageLayout: boolean,
 ) {
-  const [dims, setDims] = useState({ width: 500, height: 700 })
+  const [dims, setDims] = useState({ width: 500, height: 700, viewportWidth: 500, viewportHeight: 700 })
 
   useEffect(() => {
     const stage = stageRef.current
@@ -140,6 +140,8 @@ function useFlipbookDimensions(
         setDims({
           width: Math.max(240, pageWidth),
           height: Math.max(240, pageHeight),
+          viewportWidth: availableWidth,
+          viewportHeight: availableHeight,
         })
         return
       }
@@ -165,6 +167,8 @@ function useFlipbookDimensions(
         setDims({
           width: Math.max(240, pageWidth),
           height: Math.max(240, pageHeight),
+          viewportWidth: availableWidth,
+          viewportHeight: availableHeight,
         })
         return
       }
@@ -180,6 +184,8 @@ function useFlipbookDimensions(
       setDims({
         width: Math.max(240, Math.floor(pageWidth)),
         height: Math.max(240, Math.floor(pageHeight)),
+        viewportWidth: availableWidth,
+        viewportHeight: availableHeight,
       })
     }
 
@@ -330,7 +336,7 @@ export function FlipbookViewer({
   const isCoverOrBack =
     spreadView && totalPages > 0 && (currentPage === 1 || currentPage === totalPages)
   const usePortraitLayout = !spreadView || isCoverOrBack
-  const { width, height } = useFlipbookDimensions(
+  const { width, height, viewportWidth, viewportHeight } = useFlipbookDimensions(
     stageRef,
     aspectRatio,
     mode,
@@ -348,7 +354,7 @@ export function FlipbookViewer({
     resetPan,
     viewportStyle,
     viewportHandlers,
-  } = useFlipbookZoom(bookWidth, height)
+  } = useFlipbookZoom(bookWidth, height, viewportWidth, viewportHeight)
   const layoutMode = !spreadView ? 'single' : isCoverOrBack ? 'cover' : 'spread'
   const bookKey = `${layoutMode}-${width}-${height}-${totalPages}`
   const { trackPageView, trackLinkClick, trackVideoPlay, trackPaywallImpression, trackPaywallClick, trackLeadCaptureImpression, trackLeadCaptureSubmit } =
