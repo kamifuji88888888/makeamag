@@ -124,7 +124,17 @@ export function createUsersStore(dataDir: string) {
 
       const existing = await this.findByEmail(normalized)
       if (existing) {
-        throw new Error('An account with this email already exists. Sign in instead.')
+        if (existing.passwordHash) {
+          throw new Error('An account with this email already exists. Sign in instead.')
+        }
+
+        const upgraded: UserRecord = {
+          ...existing,
+          passwordHash: await hashPassword(password),
+          updatedAt: new Date().toISOString(),
+        }
+        await writeUser(upgraded)
+        return upgraded
       }
 
       const now = new Date().toISOString()
@@ -140,11 +150,15 @@ export function createUsersStore(dataDir: string) {
       return user
     },
 
-    async authenticateWithPassword(email: string, password: string): Promise<UserRecord | null> {
+    async authenticateWithPassword(
+      email: string,
+      password: string,
+    ): Promise<'invalid' | 'no-password' | UserRecord> {
       const user = await this.findByEmail(email)
-      if (!user?.passwordHash) return null
+      if (!user) return 'invalid'
+      if (!user.passwordHash) return 'no-password'
       const valid = await verifyPasswordHash(password, user.passwordHash)
-      return valid ? user : null
+      return valid ? user : 'invalid'
     },
 
     async updatePassword(email: string, password: string): Promise<UserRecord | null> {

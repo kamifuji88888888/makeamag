@@ -250,10 +250,20 @@ export function AuthPage() {
                     <div className="space-y-2">
                       <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>
                       {mode === 'signin' &&
-                        error.toLowerCase().includes('incorrect') &&
+                        (error.toLowerCase().includes('incorrect') ||
+                          error.toLowerCase().includes('no password')) &&
                         magicLinkEnabled && (
                           <p className="text-sm text-apple-muted">
-                            Signed up with an email link?{' '}
+                            {error.toLowerCase().includes('no password') ? (
+                              <>
+                                <Link to="/auth/forgot-password" className="apple-link">
+                                  Reset your password
+                                </Link>{' '}
+                                to create one, or{' '}
+                              </>
+                            ) : (
+                              <>Signed up with an email link? </>
+                            )}
                             <button
                               type="button"
                               onClick={() => {
@@ -263,9 +273,9 @@ export function AuthPage() {
                               }}
                               className="apple-link"
                             >
-                              Email me a sign-in link
-                            </button>{' '}
-                            instead.
+                              email me a sign-in link
+                            </button>
+                            {!error.toLowerCase().includes('no password') && ' instead.'}
                           </p>
                         )}
                     </div>

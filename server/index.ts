@@ -305,9 +305,17 @@ app.post('/api/auth/login', async (req, res) => {
       return
     }
 
-    const user = await users.authenticateWithPassword(email, password)
-    if (!user) {
-      res.status(401).json({ error: 'Incorrect email or password' })
+    const user = await users.authenticateWithPassword(email.trim(), password)
+    if (user === 'no-password') {
+      res.status(401).json({
+        error:
+          'No password is set for this account. Use "Email me a sign-in link" below, or reset your password to create one.',
+        code: 'no_password',
+      })
+      return
+    }
+    if (user === 'invalid') {
+      res.status(401).json({ error: 'Incorrect email or password', code: 'invalid_credentials' })
       return
     }
 
