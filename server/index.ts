@@ -1325,6 +1325,9 @@ if (isProduction) {
         if (filePath.endsWith('.mjs')) {
           res.setHeader('Content-Type', 'application/javascript; charset=utf-8')
         }
+        if (filePath.includes(`${path.sep}pdfjs${path.sep}`) || filePath.endsWith('pdfjs-loader.mjs')) {
+          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
+        }
       },
     }),
   )

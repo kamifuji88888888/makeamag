@@ -4,10 +4,17 @@ declare global {
   }
 }
 
+declare const __PDFJS_VERSION__: string
+
+const PDFJS_VERSION = __PDFJS_VERSION__
+
 export function bootstrapPdfJs(): Promise<void> {
-  if (window.__makeamagPdfjs) {
+  if (window.__makeamagPdfjs?.version === PDFJS_VERSION) {
     return Promise.resolve()
   }
+
+  delete window.__makeamagPdfjs
+  document.querySelectorAll('script[data-makeamag-pdfjs]').forEach((node) => node.remove())
 
   return new Promise((resolve, reject) => {
     const timeout = window.setTimeout(() => {
@@ -15,7 +22,7 @@ export function bootstrapPdfJs(): Promise<void> {
     }, 15000)
 
     const waitForPdfJs = () => {
-      if (window.__makeamagPdfjs) {
+      if (window.__makeamagPdfjs?.version === PDFJS_VERSION) {
         window.clearTimeout(timeout)
         resolve()
         return
@@ -23,16 +30,10 @@ export function bootstrapPdfJs(): Promise<void> {
       window.requestAnimationFrame(waitForPdfJs)
     }
 
-    const existing = document.querySelector('script[data-makeamag-pdfjs]')
-    if (existing) {
-      waitForPdfJs()
-      return
-    }
-
     const script = document.createElement('script')
     script.type = 'module'
-    script.src = '/pdfjs-loader.mjs'
-    script.dataset.makeamagPdfjs = 'true'
+    script.src = `/pdfjs-loader.mjs?v=${PDFJS_VERSION}`
+    script.dataset.makeamagPdfjs = PDFJS_VERSION
     script.addEventListener('load', waitForPdfJs)
     script.addEventListener('error', () => {
       window.clearTimeout(timeout)
