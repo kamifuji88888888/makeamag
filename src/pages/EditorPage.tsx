@@ -28,12 +28,14 @@ import {
   fetchStripeStatus,
   getShareUrl,
   publishFlipbook,
+  replaceFlipbookPdf,
   startStripeConnect,
   unlockFlipbook,
   updateFlipbook,
   uploadFlipbookLogo,
 } from '../lib/api'
 import type { LibraryEntry } from '../lib/libraryStorage'
+import { saveDraftPdf } from '../lib/libraryStorage'
 import { useFlipbookLibrary } from '../hooks/useFlipbookLibrary'
 import { extractPdfOutline, renderPdfFromBuffer, renderPdfToImages } from '../lib/pdfRenderer'
 import { syncShareCover } from '../lib/shareCover'
@@ -609,6 +611,129 @@ export function EditorPage() {
       })
   }, [handleTableOfContentsChange, state])
 
+  const applyPdfToReady = useCallback(
+    (
+      ready: ReadyState,
+      file: File,
+      result: Awaited<ReturnType<typeof renderPdfToImages>>,
+    ): ReadyState => {
+      const nextSpread =
+        Math.abs(result.aspectRatio - ready.aspectRatio) > 0.05
+          ? defaultSpreadView(result.aspectRatio)
+          : ready.spreadView
+
+      return {
+        ...ready,
+        fileName: file.name,
+        pdfFile: file,
+        images: result.images,
+        aspectRatio: result.aspectRatio,
+        pageTexts: result.pageTexts,
+        spreadView: nextSpread,
+        publication: {
+          ...ready.publication,
+          title: ready.publication.title || file.name.replace(/\.pdf$/i, ''),
+        },
+      }
+    },
+    [],
+  )
+
+  const handleReplacePdf = useCallback(
+    async (file: File) => {
+      if (state.status !== 'ready') return
+
+      const ready = state
+      const published = Boolean(ready.flipbookId)
+      const confirmMessage = published
+        ? `Replace the PDF for this magazine?\n\nYour share link stays the same. If the new PDF has a different page count, review hotspots, videos, and the table of contents.`
+        : `Replace the PDF for this draft?\n\nHotspots and videos may need repositioning if the page count changes.`
+
+      if (!window.confirm(confirmMessage)) return
+
+      plan.refreshUsage()
+      if (!plan.canUploadPdf(file.size)) {
+        showUpgrade('PDF too large', 'fileSize', undefined, formatByteSize(file.size))
+        return
+      }
+
+      setState({ status: 'loading', fileName: file.name, progress: 0 })
+
+      try {
+        const result = await renderPdfToImages(file, (progress) => {
+          setState({ status: 'loading', fileName: file.name, progress })
+        })
+
+        if (!plan.canAddPages(result.pageCount)) {
+          setState(ready)
+          showUpgrade('PDF too long', 'pages', undefined, String(result.pageCount))
+          return
+        }
+
+        let nextReady = applyPdfToReady(ready, file, result)
+
+        if (ready.flipbookId) {
+          const meta = await replaceFlipbookPdf(ready.flipbookId, file, { planId: plan.planId })
+          nextReady = {
+            ...nextReady,
+            fileName: meta.fileName,
+            flipbookId: meta.id,
+          }
+          void syncShareCover(meta.id, result.images[0])
+        } else {
+          await saveDraftPdf(ready.libraryEntryId, file)
+        }
+
+        const thumbnail = await createThumbnailFromDataUrl(result.images[0] ?? '')
+        setState(nextReady)
+        persistLibrary(nextReady, { fileName: nextReady.fileName, thumbnail })
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to replace PDF'
+        setState({ status: 'error', message })
+      }
+    },
+    [applyPdfToReady, persistLibrary, plan, showUpgrade, state],
+  )
+
+  const handleRefreshPages = useCallback(async () => {
+    if (state.status !== 'ready') return
+
+    const ready = state
+    setState({ status: 'loading', fileName: ready.fileName, progress: 0 })
+
+    try {
+      let file = ready.pdfFile
+      let fileName = ready.fileName
+
+      if (ready.flipbookId) {
+        const buffer = await fetchFlipbookPdf(ready.flipbookId)
+        fileName = ready.fileName
+        file = new File([buffer], fileName, { type: 'application/pdf' })
+      }
+
+      const result = ready.flipbookId
+        ? await renderPdfFromBuffer(await file.arrayBuffer(), (progress) => {
+            setState({ status: 'loading', fileName, progress })
+          })
+        : await renderPdfToImages(file, (progress) => {
+            setState({ status: 'loading', fileName, progress })
+          })
+
+      const nextReady = applyPdfToReady(ready, file, result)
+      const thumbnail = await createThumbnailFromDataUrl(result.images[0] ?? '')
+      setState(nextReady)
+
+      if (ready.flipbookId) {
+        void syncShareCover(ready.flipbookId, result.images[0])
+      }
+
+      persistLibrary(nextReady, { thumbnail })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to refresh pages'
+      setState({ status: 'error', message })
+    }
+  }, [applyPdfToReady, persistLibrary, state])
+
   const handlePasswordChange = useCallback(
     (password: string, enabled: boolean) => {
       if (enabled && !plan.can('passwordProtection')) {
@@ -960,6 +1085,8 @@ export function EditorPage() {
               onLogoUpload={state.flipbookId ? handleLogoUpload : undefined}
               onLogoRemove={state.flipbookId ? handleLogoRemove : undefined}
               onImportOutline={handleImportOutline}
+              onReplacePdf={handleReplacePdf}
+              onRefreshPages={handleRefreshPages}
               onPasswordChange={handlePasswordChange}
               onVisibilityChange={handleVisibilityChange}
               canPasswordProtect={plan.can('passwordProtection')}

@@ -186,6 +186,31 @@ export async function publishFlipbook(
   return response.json() as Promise<FlipbookPublicMeta>
 }
 
+export async function replaceFlipbookPdf(
+  id: string,
+  pdfFile: File,
+  options?: { planId?: PlanId },
+): Promise<FlipbookPublicMeta> {
+  const formData = new FormData()
+  formData.append('pdf', pdfFile)
+  if (options?.planId) {
+    formData.append('planId', options.planId)
+  }
+
+  const response = await fetch(`${API_BASE}/flipbooks/${id}/pdf`, {
+    method: 'POST',
+    credentials: 'include',
+    body: formData,
+  })
+
+  if (!response.ok) {
+    const body = (await response.json().catch(() => ({}))) as { error?: string }
+    throw new Error(body.error ?? 'Failed to replace PDF')
+  }
+
+  return response.json() as Promise<FlipbookPublicMeta>
+}
+
 export async function updateFlipbook(
   id: string,
   updates: {

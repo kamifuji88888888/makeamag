@@ -55,6 +55,9 @@ interface PublisherPanelProps {
   canLeadCapture?: boolean
   stripeConfigured?: boolean
   onStripeConnect?: () => Promise<void>
+  onReplacePdf?: (file: File) => Promise<void>
+  onRefreshPages?: () => Promise<void>
+  pdfActionBusy?: boolean
 }
 
 export function PublisherPanel({
@@ -94,7 +97,11 @@ export function PublisherPanel({
   canLeadCapture = true,
   stripeConfigured = false,
   onStripeConnect,
+  onReplacePdf,
+  onRefreshPages,
+  pdfActionBusy = false,
 }: PublisherPanelProps) {
+  const replacePdfInputRef = useRef<HTMLInputElement>(null)
   const [stripeConnecting, setStripeConnecting] = useState(false)
   const [tab, setTab] = useState<Tab>('ai')
   const [descriptionGenerating, setDescriptionGenerating] = useState(false)
@@ -377,6 +384,54 @@ export function PublisherPanel({
 
           {tab === 'details' && (
             <>
+              {(onReplacePdf || onRefreshPages) && (
+                <div className="rounded-xl border border-apple-border-light bg-apple-gray/40 px-4 py-4">
+                  <p className="text-sm font-medium text-apple-text">Source PDF</p>
+                  <p className="mt-1 text-sm text-apple-muted">
+                    {fileName} · {totalPages} {totalPages === 1 ? 'page' : 'pages'}
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {onReplacePdf && (
+                      <>
+                        <input
+                          ref={replacePdfInputRef}
+                          type="file"
+                          accept="application/pdf,.pdf"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0]
+                            e.target.value = ''
+                            if (file) void onReplacePdf(file)
+                          }}
+                        />
+                        <button
+                          type="button"
+                          disabled={pdfActionBusy}
+                          onClick={() => replacePdfInputRef.current?.click()}
+                          className="apple-btn-secondary text-sm disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          Replace PDF
+                        </button>
+                      </>
+                    )}
+                    {onRefreshPages && (
+                      <button
+                        type="button"
+                        disabled={pdfActionBusy}
+                        onClick={() => void onRefreshPages()}
+                        className="apple-btn-ghost text-sm disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Refresh pages
+                      </button>
+                    )}
+                  </div>
+                  <p className="mt-2 text-xs leading-relaxed text-apple-muted">
+                    {flipbookId
+                      ? 'Replacing the PDF keeps your share link. Review hotspots and videos if the page count changes.'
+                      : 'Refresh pages re-renders from your current PDF — useful after viewer updates.'}
+                  </p>
+                </div>
+              )}
               <div className="rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-sm text-amber-950">
                 <p className="font-medium">Content guidelines</p>
                 <p className="mt-1 leading-relaxed text-amber-900/90">

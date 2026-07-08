@@ -100,6 +100,9 @@ interface FlipbookViewerProps {
   stripeConfigured?: boolean
   onStripeConnect?: () => Promise<void>
   onUpgradeRequest?: (feature: PlanFeature, label: string) => void
+  onReplacePdf?: (file: File) => Promise<void>
+  onRefreshPages?: () => Promise<void>
+  pdfActionBusy?: boolean
 }
 
 function useFlipbookDimensions(
@@ -261,6 +264,9 @@ export function FlipbookViewer({
   stripeConfigured = false,
   onStripeConnect,
   onUpgradeRequest,
+  onReplacePdf,
+  onRefreshPages,
+  pdfActionBusy,
 }: FlipbookViewerProps) {
   const bookRef = useRef<HTMLFlipBookRef>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -936,6 +942,9 @@ export function FlipbookViewer({
           canLeadCapture={canLeadCapture}
           stripeConfigured={stripeConfigured}
           onStripeConnect={onStripeConnect}
+          onReplacePdf={onReplacePdf}
+          onRefreshPages={onRefreshPages}
+          pdfActionBusy={pdfActionBusy}
         />
       )}
 

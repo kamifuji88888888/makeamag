@@ -694,6 +694,45 @@ app.get('/api/flipbooks/:id/pdf', async (req, res) => {
   }
 })
 
+app.post('/api/flipbooks/:id/pdf', upload.single('pdf'), async (req, res) => {
+  try {
+    const meta = await storage.readMeta(req.params.id)
+    if (!meta) {
+      res.status(404).json({ error: 'Flipbook not found' })
+      return
+    }
+
+    const session = readSessionFromRequest(req)
+    if (!canEditFlipbook(meta, session)) {
+      res.status(403).json({ error: 'You do not have permission to edit this flipbook' })
+      return
+    }
+
+    if (!req.file) {
+      res.status(400).json({ error: 'PDF file is required' })
+      return
+    }
+
+    const planId = parsePlanId(req.body.planId)
+    const uploadLimit = maxPdfUploadBytes(planId)
+    if (req.file.size > uploadLimit) {
+      res.status(413).json({
+        error: `PDF exceeds your ${getPlan(planId).name} plan limit of ${getPlan(planId).limits.maxPdfUploadMb} MB. Upgrade for larger uploads.`,
+      })
+      return
+    }
+
+    await storage.savePdf(meta.id, req.file.buffer)
+    meta.fileName = req.file.originalname
+    meta.pdfSizeBytes = req.file.size
+    await storage.saveMeta(meta)
+    res.json(toPublicMeta(meta))
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'PDF replacement failed'
+    res.status(500).json({ error: message })
+  }
+})
+
 app.patch('/api/flipbooks/:id', async (req, res) => {
   const meta = await storage.readMeta(req.params.id)
   if (!meta) {

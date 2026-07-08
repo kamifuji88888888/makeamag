@@ -90,6 +90,9 @@ function createPageCanvas(pageViewport: { width: number; height: number }) {
     throw new Error('Could not create canvas context for PDF rendering')
   }
 
+  renderContext.fillStyle = '#ffffff'
+  renderContext.fillRect(0, 0, width, height)
+
   const outputCanvas = document.createElement('canvas')
   outputCanvas.width = width
   outputCanvas.height = height
@@ -127,7 +130,7 @@ async function renderPageToDataUrl(
     viewport: pageViewport,
     intent: 'print',
     annotationMode: pdfjsLib.AnnotationMode.DISABLE,
-    background: 'rgba(0, 0, 0, 0)',
+    background: '#ffffff',
   })
 
   await renderTask.promise
@@ -139,8 +142,13 @@ async function renderPageToDataUrl(
 
 async function destroyPdf(pdf: PdfJs.PDFDocumentProxy) {
   try {
-    if (typeof pdf.destroy === 'function') {
-      await pdf.destroy()
+    if (typeof pdf.cleanup === 'function') {
+      await pdf.cleanup()
+      return
+    }
+    const legacyPdf = pdf as PdfJs.PDFDocumentProxy & { destroy?: () => Promise<void> }
+    if (typeof legacyPdf.destroy === 'function') {
+      await legacyPdf.destroy()
     }
   } catch {
     // Ignore cleanup failures after a successful render.
@@ -160,7 +168,7 @@ async function renderPages(
 
   const firstPage = await pdf.getPage(1)
   const baseViewport = firstPage.getViewport({ scale: 1 })
-  const scale = Math.min(2, maxRenderWidth / baseViewport.width)
+  const scale = maxRenderWidth / baseViewport.width
 
   for (let pageNum = 1; pageNum <= numPages; pageNum++) {
     try {
