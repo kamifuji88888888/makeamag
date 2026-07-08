@@ -120,6 +120,27 @@ function useFlipbookDimensions(
 
     const maxSinglePageWidth = mode === 'embed' ? 1400 : mode === 'shared' ? 1200 : 960
 
+    function commitDimensions(next: {
+      width: number
+      height: number
+      viewportWidth: number
+      viewportHeight: number
+    }) {
+      setDims((prev) => {
+        const bookSizeChanged =
+          Math.abs(prev.width - next.width) >= 12 || Math.abs(prev.height - next.height) >= 12
+        const viewportChanged =
+          Math.abs(prev.viewportWidth - next.viewportWidth) >= 24 ||
+          Math.abs(prev.viewportHeight - next.viewportHeight) >= 24
+
+        if (!bookSizeChanged && !viewportChanged) {
+          return prev
+        }
+
+        return next
+      })
+    }
+
     function update() {
       const element = stageRef.current
       if (!element) return
@@ -137,7 +158,7 @@ function useFlipbookDimensions(
           pageHeight = Math.floor(pageWidth / aspectRatio)
         }
 
-        setDims({
+        commitDimensions({
           width: Math.max(240, pageWidth),
           height: Math.max(240, pageHeight),
           viewportWidth: availableWidth,
@@ -164,7 +185,7 @@ function useFlipbookDimensions(
           pageWidth = Math.floor(pageHeight * aspectRatio)
         }
 
-        setDims({
+        commitDimensions({
           width: Math.max(240, pageWidth),
           height: Math.max(240, pageHeight),
           viewportWidth: availableWidth,
@@ -181,7 +202,7 @@ function useFlipbookDimensions(
         pageWidth = pageHeight * aspectRatio
       }
 
-      setDims({
+      commitDimensions({
         width: Math.max(240, Math.floor(pageWidth)),
         height: Math.max(240, Math.floor(pageHeight)),
         viewportWidth: availableWidth,
@@ -373,17 +394,30 @@ export function FlipbookViewer({
   const displayName = displayTitle({ fileName, publication })
   const hasContents = tableOfContents.length > 0
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
+  const syncFlipbookPage = useCallback(() => {
+    const target = currentPage - 1
+    const attempt = (remaining: number) => {
       const flip = bookRef.current?.pageFlip()
-      if (!flip) return
-      const target = currentPage - 1
-      if (flip.getCurrentPageIndex() !== target) {
-        flip.flip(target)
+      if (!flip || flip.getPageCount() <= 0) {
+        if (remaining > 0) {
+          requestAnimationFrame(() => attempt(remaining - 1))
+        }
+        return
       }
-    }, 0)
-    return () => window.clearTimeout(timer)
-  }, [bookKey])
+      if (flip.getCurrentPageIndex() !== target) {
+        flip.turnToPage(target)
+      }
+    }
+    attempt(12)
+  }, [currentPage])
+
+  useEffect(() => {
+    syncFlipbookPage()
+  }, [bookKey, syncFlipbookPage])
+
+  useEffect(() => {
+    syncFlipbookPage()
+  }, [zoom, syncFlipbookPage])
 
   useEffect(() => {
     if (wasPublishing.current && !isPublishing && shareUrl) {
