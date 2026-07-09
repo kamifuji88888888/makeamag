@@ -4,7 +4,11 @@ import type { PlanId } from '../shared/plans.js'
 import { parsePlanId } from '../shared/plans.js'
 import { isBillingConfigured } from './billing.js'
 
-const FOUNDER_OVERRIDE_EMAILS = ['stephen@genlux.com', 'vip@genlux.com']
+const FOUNDER_OVERRIDE_EMAILS = [
+  'stephen@genlux.com',
+  'vip@genlux.com',
+  'stephencreativedirector@gmail.com',
+]
 
 export function planOverrideEmails(): string[] {
   const fromEnv =
