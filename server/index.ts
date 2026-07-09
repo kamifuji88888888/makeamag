@@ -396,20 +396,13 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     }
 
     const normalized = email.trim().toLowerCase()
-    const user = await users.findByEmail(normalized)
-    if (user) {
-      const token = createPasswordResetToken(normalized)
-      const delivery = await sendPasswordResetEmail(normalized, token)
-      res.json({
-        ok: true,
-        delivered: delivery.delivered,
-        ...(delivery.devLink ? { devLink: delivery.devLink } : {}),
-      })
-      return
-    }
-
-    // Do not reveal whether the account exists.
-    res.json({ ok: true, delivered: true })
+    const token = createPasswordResetToken(normalized)
+    const delivery = await sendPasswordResetEmail(normalized, token)
+    res.json({
+      ok: true,
+      delivered: delivery.delivered,
+      ...(delivery.devLink ? { devLink: delivery.devLink } : {}),
+    })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to send password reset email'
     res.status(500).json({ error: message })
@@ -432,6 +425,11 @@ app.post('/api/auth/reset-password', async (req, res) => {
     if (!email) {
       res.status(400).json({ error: 'This reset link is invalid or has expired' })
       return
+    }
+
+    const existing = await users.findByEmail(email)
+    if (!existing) {
+      await users.findOrCreate(email)
     }
 
     const user = await users.updatePassword(email, password)

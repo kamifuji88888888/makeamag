@@ -116,12 +116,10 @@ export function ForgotPasswordPage() {
                 <p className="mt-3 text-[0.9375rem] leading-relaxed text-apple-muted">
                   {delivered ? (
                     <>
-                      If an account exists for{' '}
-                      <span className="font-medium text-apple-text">{email}</span>, we sent password
-                      reset instructions from{' '}
+                      We sent password reset instructions to{' '}
+                      <span className="font-medium text-apple-text">{email}</span> from{' '}
                       <span className="font-medium text-apple-text">noreply@makeamag.com</span>.
-                      Check your inbox, spam, and any company quarantine folder — delivery can take
-                      a few minutes.
+                      Check your inbox and spam — delivery can take a few minutes.
                     </>
                   ) : (
                     <>
@@ -132,12 +130,12 @@ export function ForgotPasswordPage() {
                 </p>
                 {delivered && (
                   <p className="mt-3 rounded-xl bg-apple-gray px-4 py-3 text-sm text-apple-muted">
+                    Signed in with an email link before? This reset also works for those accounts.
                     Nothing arrived? Try{' '}
                     <Link to="/auth" className="apple-link">
-                      Email me a sign-in link
+                      email me a sign-in link
                     </Link>{' '}
-                    on the sign-in page instead — it uses the same delivery path but may work if your
-                    mail filter treats it differently.
+                    instead.
                   </p>
                 )}
                 <p className="mt-3 text-sm text-apple-muted">
