@@ -56,14 +56,15 @@ body {
   display: block;
 }
 
-/* Spread pages: align to spine and overlap slightly to hide the center gutter. */
+/* Spread pages: align to spine and overlap slightly to hide the center gutter.
+   Prefer contain so page tops/bottoms are never cropped (especially on phones). */
 .apple-flipbook-frame--spread .flipbook-page img[data-spine='left'] {
-  object-fit: cover;
+  object-fit: contain;
   object-position: right center;
 }
 
 .apple-flipbook-frame--spread .flipbook-page img[data-spine='right'] {
-  object-fit: cover;
+  object-fit: contain;
   object-position: left center;
 }
 
@@ -79,11 +80,16 @@ body {
   display: none !important;
 }
 
-@media (orientation: landscape) and (max-height: 520px) {
-  .apple-flipbook-frame--spread .flipbook-page img[data-spine='left'],
+/* Desktop-only: cover can hide the spine gutter when the stage is large enough. */
+@media (min-width: 768px) and (min-height: 640px) {
+  .apple-flipbook-frame--spread .flipbook-page img[data-spine='left'] {
+    object-fit: cover;
+    object-position: right center;
+  }
+
   .apple-flipbook-frame--spread .flipbook-page img[data-spine='right'] {
-    object-fit: contain;
-    object-position: center;
+    object-fit: cover;
+    object-position: left center;
   }
 }
 

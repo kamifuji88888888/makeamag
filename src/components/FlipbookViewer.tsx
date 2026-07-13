@@ -159,8 +159,8 @@ function useFlipbookDimensions(
         }
 
         commitDimensions({
-          width: Math.max(240, pageWidth),
-          height: Math.max(240, pageHeight),
+          width: Math.max(1, pageWidth),
+          height: Math.max(1, pageHeight),
           viewportWidth: availableWidth,
           viewportHeight: availableHeight,
         })
@@ -186,8 +186,8 @@ function useFlipbookDimensions(
         }
 
         commitDimensions({
-          width: Math.max(240, pageWidth),
-          height: Math.max(240, pageHeight),
+          width: Math.max(1, pageWidth),
+          height: Math.max(1, pageHeight),
           viewportWidth: availableWidth,
           viewportHeight: availableHeight,
         })
@@ -203,8 +203,8 @@ function useFlipbookDimensions(
       }
 
       commitDimensions({
-        width: Math.max(240, Math.floor(pageWidth)),
-        height: Math.max(240, Math.floor(pageHeight)),
+        width: Math.max(1, Math.floor(pageWidth)),
+        height: Math.max(1, Math.floor(pageHeight)),
         viewportWidth: availableWidth,
         viewportHeight: availableHeight,
       })
@@ -785,9 +785,9 @@ export function FlipbookViewer({
                 width={width}
                 height={height}
                 size="fixed"
-                minWidth={240}
+                minWidth={80}
                 maxWidth={1400}
-                minHeight={320}
+                minHeight={80}
                 maxHeight={1400}
                 drawShadow
                 flippingTime={800}
