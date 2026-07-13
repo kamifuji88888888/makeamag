@@ -1,4 +1,5 @@
 import { PageNavigator } from './PageNavigator'
+import { FlipbookZoomControls } from './FlipbookZoomControls'
 
 interface FlipbookControlsProps {
   currentPage: number
@@ -7,6 +8,11 @@ interface FlipbookControlsProps {
   mode: 'editor' | 'shared' | 'embed'
   isPublishing?: boolean
   positionMode?: boolean
+  zoom?: number
+  minZoom?: number
+  maxZoom?: number
+  onZoomChange?: (zoom: number) => void
+  onZoomReset?: () => void
   onPrev: () => void
   onNext: () => void
   onGoToPage: (pageIndex: number) => void
@@ -31,6 +37,11 @@ export function FlipbookControls({
   mode,
   isPublishing,
   positionMode,
+  zoom,
+  minZoom = 1,
+  maxZoom = 3,
+  onZoomChange,
+  onZoomReset,
   onPrev,
   onNext,
   onGoToPage,
@@ -50,6 +61,8 @@ export function FlipbookControls({
   const isFirst = currentPage <= 1
   const isLast = currentPage >= totalPages
   const compact = mode === 'embed'
+  const showZoom =
+    typeof zoom === 'number' && Boolean(onZoomChange) && Boolean(onZoomReset) && !positionMode
 
   const iconBtn =
     'flex h-9 w-9 items-center justify-center rounded-full text-apple-text transition hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-30'
@@ -88,6 +101,21 @@ export function FlipbookControls({
           <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
         </svg>
       </button>
+
+      {showZoom && (
+        <>
+          <div className="mx-1 h-5 w-px bg-apple-border-light" />
+          <FlipbookZoomControls
+            zoom={zoom}
+            minZoom={minZoom}
+            maxZoom={maxZoom}
+            onZoomChange={onZoomChange!}
+            onReset={onZoomReset!}
+            inline
+            compact
+          />
+        </>
+      )}
 
       <div className="mx-1 h-5 w-px bg-apple-border-light" />
 

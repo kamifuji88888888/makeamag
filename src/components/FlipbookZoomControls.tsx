@@ -4,6 +4,8 @@ interface FlipbookZoomControlsProps {
   maxZoom: number
   onZoomChange: (zoom: number) => void
   onReset: () => void
+  /** Nest inside another control bar without its own pill background. */
+  inline?: boolean
   compact?: boolean
 }
 
@@ -13,21 +15,16 @@ export function FlipbookZoomControls({
   maxZoom,
   onZoomChange,
   onReset,
+  inline = false,
   compact = false,
 }: FlipbookZoomControlsProps) {
   const percent = Math.round(zoom * 100)
-  const iconBtn =
-    'flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-apple-text transition hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-30'
+  const iconBtn = inline
+    ? 'flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-apple-text transition hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-30'
+    : 'flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-apple-text transition hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-30'
 
-  return (
-    <div
-      className={[
-        'apple-controls flex items-center gap-2',
-        compact ? 'px-2 py-1' : 'px-2.5 py-1.5',
-      ].join(' ')}
-      role="group"
-      aria-label="Zoom controls"
-    >
+  const content = (
+    <>
       <button
         type="button"
         className={iconBtn}
@@ -47,7 +44,10 @@ export function FlipbookZoomControls({
         step={5}
         value={percent}
         onChange={(e) => onZoomChange(Number(e.target.value) / 100)}
-        className="flipbook-zoom-slider min-w-[7rem] flex-1"
+        className={[
+          'flipbook-zoom-slider flex-1',
+          inline ? 'min-w-[3.5rem] max-w-[5.5rem]' : 'min-w-[7rem]',
+        ].join(' ')}
         aria-label="Zoom level"
         aria-valuemin={minZoom * 100}
         aria-valuemax={maxZoom * 100}
@@ -67,15 +67,48 @@ export function FlipbookZoomControls({
         </svg>
       </button>
 
-      <span className="min-w-[3rem] text-center text-[0.8125rem] font-medium tabular-nums text-apple-muted">
+      <span
+        className={[
+          'text-center text-[0.8125rem] font-medium tabular-nums text-apple-muted',
+          inline ? 'min-w-[2.5rem]' : 'min-w-[3rem]',
+        ].join(' ')}
+      >
         {percent}%
       </span>
 
       {zoom > minZoom && (
-        <button type="button" onClick={onReset} className="apple-btn-ghost text-[0.75rem]">
+        <button
+          type="button"
+          onClick={onReset}
+          className={[
+            'apple-btn-ghost text-[0.75rem]',
+            inline ? 'hidden sm:inline-flex' : '',
+          ].join(' ')}
+        >
           Reset
         </button>
       )}
+    </>
+  )
+
+  if (inline) {
+    return (
+      <div className="flex items-center gap-1" role="group" aria-label="Zoom controls">
+        {content}
+      </div>
+    )
+  }
+
+  return (
+    <div
+      className={[
+        'apple-controls flex items-center gap-2',
+        compact ? 'px-2 py-1' : 'px-2.5 py-1.5',
+      ].join(' ')}
+      role="group"
+      aria-label="Zoom controls"
+    >
+      {content}
     </div>
   )
 }

@@ -29,7 +29,6 @@ import { useFlipbookZoom } from '../hooks/useFlipbookZoom'
 import { usePageTurnSound } from '../hooks/usePageTurnSound'
 import { FlipbookControls } from './FlipbookControls'
 import { FlipbookPage } from './FlipbookPage'
-import { FlipbookZoomControls } from './FlipbookZoomControls'
 import { PopUpPanelModal } from './PopUpPanelModal'
 import { PublicationHeader } from './PublicationHeader'
 import { PublisherPanel } from './PublisherPanel'
@@ -854,17 +853,6 @@ export function FlipbookViewer({
               )}
             </div>
 
-            {!inlinePositionMode && (
-              <FlipbookZoomControls
-                zoom={zoom}
-                minZoom={minZoom}
-                maxZoom={maxZoom}
-                onZoomChange={setZoomLevel}
-                onReset={resetZoom}
-                compact={isEmbed || mode === 'editor'}
-              />
-            )}
-
             <FlipbookControls
               currentPage={currentPage}
               totalPages={totalPages}
@@ -873,6 +861,11 @@ export function FlipbookViewer({
               isPublishing={isPublishing}
               positionMode={inlinePositionMode}
               hasContents={hasContents}
+              zoom={zoom}
+              minZoom={minZoom}
+              maxZoom={maxZoom}
+              onZoomChange={setZoomLevel}
+              onZoomReset={resetZoom}
               onPrev={flipPrev}
               onNext={flipNext}
               onGoToPage={goToPage}
