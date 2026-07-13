@@ -120,6 +120,24 @@ function useFlipbookDimensions(
 
     const maxSinglePageWidth = mode === 'embed' ? 1400 : mode === 'shared' ? 1200 : 960
 
+    function fitPage(availableWidth: number, availableHeight: number, pagesWide: number) {
+      // Contain the full page(s) in the stage — never size taller/wider than the viewport.
+      const widthFromHeight = availableHeight * aspectRatio * pagesWide
+      if (widthFromHeight <= availableWidth) {
+        const pageWidth = availableHeight * aspectRatio
+        return {
+          width: Math.max(1, Math.floor(pageWidth)),
+          height: Math.max(1, Math.floor(availableHeight)),
+        }
+      }
+      const pageWidth = availableWidth / pagesWide
+      const pageHeight = pageWidth / aspectRatio
+      return {
+        width: Math.max(1, Math.floor(pageWidth)),
+        height: Math.max(1, Math.floor(pageHeight)),
+      }
+    }
+
     function commitDimensions(next: {
       width: number
       height: number
@@ -128,10 +146,10 @@ function useFlipbookDimensions(
     }) {
       setDims((prev) => {
         const bookSizeChanged =
-          Math.abs(prev.width - next.width) >= 12 || Math.abs(prev.height - next.height) >= 12
+          Math.abs(prev.width - next.width) >= 2 || Math.abs(prev.height - next.height) >= 2
         const viewportChanged =
-          Math.abs(prev.viewportWidth - next.viewportWidth) >= 24 ||
-          Math.abs(prev.viewportHeight - next.viewportHeight) >= 24
+          Math.abs(prev.viewportWidth - next.viewportWidth) >= 2 ||
+          Math.abs(prev.viewportHeight - next.viewportHeight) >= 2
 
         if (!bookSizeChanged && !viewportChanged) {
           return prev
@@ -145,78 +163,58 @@ function useFlipbookDimensions(
       const element = stageRef.current
       if (!element) return
 
-      const availableWidth = Math.max(0, element.clientWidth - 8)
-      const availableHeight = Math.max(0, element.clientHeight - 8)
-      if (availableWidth < 120 || availableHeight < 120) return
+      // Prefer the visible layout box; fall back to visualViewport on iOS Safari.
+      let availableWidth = Math.max(0, element.clientWidth - 8)
+      let availableHeight = Math.max(0, element.clientHeight - 8)
 
-      if (spreadView && singlePageLayout) {
-        let pageHeight = Math.floor(availableHeight)
-        let pageWidth = Math.floor(pageHeight * aspectRatio)
-
-        if (pageWidth > availableWidth) {
-          pageWidth = Math.floor(availableWidth)
-          pageHeight = Math.floor(pageWidth / aspectRatio)
-        }
-
-        commitDimensions({
-          width: Math.max(1, pageWidth),
-          height: Math.max(1, pageHeight),
-          viewportWidth: availableWidth,
-          viewportHeight: availableHeight,
-        })
-        return
+      const vv = window.visualViewport
+      if (vv && vv.height > 0) {
+        const stageRect = element.getBoundingClientRect()
+        const visibleBottom = Math.min(stageRect.bottom, vv.offsetTop + vv.height)
+        const visibleTop = Math.max(stageRect.top, vv.offsetTop)
+        const visibleHeight = Math.max(0, visibleBottom - visibleTop - 8)
+        const visibleWidth = Math.max(0, Math.min(stageRect.width, vv.width) - 8)
+        if (visibleHeight >= 80) availableHeight = Math.min(availableHeight, visibleHeight)
+        if (visibleWidth >= 80) availableWidth = Math.min(availableWidth, visibleWidth)
       }
 
-      const maxTotalWidth = spreadView
-        ? availableWidth
-        : Math.min(availableWidth, maxSinglePageWidth)
+      if (availableWidth < 80 || availableHeight < 80) return
 
-      if (spreadView) {
-        let pageHeight = Math.floor(availableHeight)
-        let pageWidth = Math.floor(pageHeight * aspectRatio)
-
-        if (pageWidth * 2 > maxTotalWidth) {
-          pageWidth = Math.floor(maxTotalWidth / 2)
-          pageHeight = Math.floor(pageWidth / aspectRatio)
-        }
-
-        if (pageHeight > availableHeight) {
-          pageHeight = Math.floor(availableHeight)
-          pageWidth = Math.floor(pageHeight * aspectRatio)
-        }
-
-        commitDimensions({
-          width: Math.max(1, pageWidth),
-          height: Math.max(1, pageHeight),
-          viewportWidth: availableWidth,
-          viewportHeight: availableHeight,
-        })
-        return
-      }
-
-      let pageWidth = maxTotalWidth
-      let pageHeight = pageWidth / aspectRatio
-
-      if (pageHeight > availableHeight) {
-        pageHeight = availableHeight
-        pageWidth = pageHeight * aspectRatio
-      }
+      const pagesWide = spreadView && !singlePageLayout ? 2 : 1
+      const cappedWidth =
+        pagesWide === 1 ? Math.min(availableWidth, maxSinglePageWidth) : availableWidth
+      const fitted = fitPage(cappedWidth, availableHeight, pagesWide)
 
       commitDimensions({
-        width: Math.max(1, Math.floor(pageWidth)),
-        height: Math.max(1, Math.floor(pageHeight)),
+        width: fitted.width,
+        height: fitted.height,
         viewportWidth: availableWidth,
         viewportHeight: availableHeight,
       })
     }
 
-    const observer = new ResizeObserver(update)
+    const observer = new ResizeObserver(() => {
+      update()
+    })
     observer.observe(stage)
     update()
-    window.addEventListener('orientationchange', update)
+
+    const onViewportChange = () => {
+      window.requestAnimationFrame(update)
+    }
+    window.addEventListener('orientationchange', onViewportChange)
+    window.visualViewport?.addEventListener('resize', onViewportChange)
+    window.visualViewport?.addEventListener('scroll', onViewportChange)
+
+    // iOS Safari often settles layout a beat after rotation.
+    const settleTimer = window.setTimeout(update, 250)
+
     return () => {
       observer.disconnect()
-      window.removeEventListener('orientationchange', update)
+      window.clearTimeout(settleTimer)
+      window.removeEventListener('orientationchange', onViewportChange)
+      window.visualViewport?.removeEventListener('resize', onViewportChange)
+      window.visualViewport?.removeEventListener('scroll', onViewportChange)
     }
   }, [aspectRatio, mode, singlePageLayout, spreadView, stageRef])
 
@@ -717,7 +715,7 @@ export function FlipbookViewer({
           'branded-scope flex flex-col items-center',
           isEmbed
             ? 'h-full gap-1.5 overflow-hidden bg-apple-bg p-2'
-            : 'h-full min-h-0 gap-1.5 overflow-hidden bg-apple-bg px-3 py-2',
+            : 'h-full min-h-0 gap-1.5 overflow-hidden bg-apple-bg px-3 py-2 [@media(orientation:landscape)_and_(max-height:500px)]:gap-0.5 [@media(orientation:landscape)_and_(max-height:500px)]:px-1 [@media(orientation:landscape)_and_(max-height:500px)]:py-0.5',
         ].join(' ')}
         style={brandingScopeStyle(branding)}
       >
@@ -738,7 +736,7 @@ export function FlipbookViewer({
         )}
 
         {isShared && !hideChrome && (
-          <div className="w-full shrink-0 max-md:landscape:hidden">
+          <div className="w-full shrink-0 [@media(orientation:landscape)_and_(max-height:500px)]:hidden">
             <PublicationHeader fileName={fileName} publication={publication} compact />
           </div>
         )}
@@ -809,8 +807,8 @@ export function FlipbookViewer({
         </div>
 
         {!hideChrome && (
-          <div className="flex w-full max-w-[980px] shrink-0 flex-col items-center gap-1.5 landscape:max-md:gap-1">
-            <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 px-1 landscape:max-md:hidden">
+          <div className="flex w-full max-w-[980px] shrink-0 flex-col items-center gap-1.5 [@media(orientation:landscape)_and_(max-height:500px)]:gap-0.5">
+            <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 px-1 [@media(orientation:landscape)_and_(max-height:500px)]:hidden">
               <p className="text-xs text-apple-muted">
                 Drag corners to flip · Arrow keys to navigate
                 {isZoomed && ' · Drag to pan'}
@@ -913,7 +911,10 @@ export function FlipbookViewer({
             />
 
             {isShared && !branding.hidePlatformChrome && !isCustomDomain && (
-              <a href="/" className="apple-link pb-0.5 text-xs">
+              <a
+                href="/"
+                className="apple-link pb-0.5 text-xs [@media(orientation:landscape)_and_(max-height:500px)]:hidden"
+              >
                 Create your own mag ›
               </a>
             )}

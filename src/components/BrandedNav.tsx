@@ -25,7 +25,7 @@ export function BrandedNav({
   const showPlatformBrand = !branding.hidePlatformChrome && !isCustomDomain
 
   return (
-    <header className="apple-nav">
+    <header className="apple-nav [@media(orientation:landscape)_and_(max-height:500px)]:hidden">
       <div className="mx-auto flex h-[52px] max-w-[980px] items-center justify-between gap-4 px-6">
         <div className="flex min-w-0 items-center gap-3">
           {logoUrl ? (
