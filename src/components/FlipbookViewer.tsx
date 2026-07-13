@@ -534,9 +534,11 @@ export function FlipbookViewer({
         return
       }
       if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        if (isZoomed) return
         e.preventDefault()
         flipNext()
       } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        if (isZoomed) return
         e.preventDefault()
         flipPrev()
       } else if (e.key === 'Escape' && inlinePositionMode) {
@@ -553,6 +555,7 @@ export function FlipbookViewer({
     flipNext,
     flipPrev,
     inlinePositionMode,
+    isZoomed,
     openPopUpPanel,
     showPositionPreview,
     showVideoEditor,
@@ -771,6 +774,7 @@ export function FlipbookViewer({
                 'apple-flipbook-frame relative overflow-hidden',
                 spreadView && !usePortraitLayout ? 'apple-flipbook-frame--spread' : '',
                 inlinePositionMode ? 'ring-2 ring-apple-blue/30' : '',
+                isZoomed ? 'pointer-events-none' : '',
               ].join(' ')}
               style={{ width: bookWidth, height }}
             >
@@ -809,13 +813,14 @@ export function FlipbookViewer({
           <div className="flex w-full max-w-[980px] shrink-0 flex-col items-center gap-1.5 [@media(orientation:landscape)_and_(max-height:500px)]:gap-0.5">
             <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 px-1 [@media(orientation:landscape)_and_(max-height:500px)]:hidden">
               <p className="text-xs text-apple-muted">
-                Drag corners to flip · Arrow keys to navigate
-                {isZoomed && ' · Drag to pan'}
+                {isZoomed
+                  ? 'Drag to pan · Reset zoom to 100% to flip pages'
+                  : 'Drag corners to flip · Arrow keys to navigate'}
                 {mode === 'editor' && inlinePositionMode && ' · Esc to exit position mode'}
                 {gateActive && ' · Preview mode'}
-                {videoEmbeds.length > 0 && !inlinePositionMode && ' · Tap videos to play'}
-                {linkHotspots.length > 0 && !inlinePositionMode && ' · Tap links to open'}
-                {popUpPanels.length > 0 && !inlinePositionMode && ' · Tap + buttons for footnotes & specs'}
+                {!isZoomed && videoEmbeds.length > 0 && !inlinePositionMode && ' · Tap videos to play'}
+                {!isZoomed && linkHotspots.length > 0 && !inlinePositionMode && ' · Tap links to open'}
+                {!isZoomed && popUpPanels.length > 0 && !inlinePositionMode && ' · Tap + buttons for footnotes & specs'}
               </p>
               {onSpreadViewChange && (
                 <div
