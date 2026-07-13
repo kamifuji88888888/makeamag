@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent } from 'react'
 
 const MIN_ZOOM = 1
-const MAX_ZOOM = 3
+const MAX_ZOOM = 4
 
 function clampPan(
   x: number,

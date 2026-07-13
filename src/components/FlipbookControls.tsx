@@ -39,7 +39,7 @@ export function FlipbookControls({
   positionMode,
   zoom,
   minZoom = 1,
-  maxZoom = 3,
+  maxZoom = 4,
   onZoomChange,
   onZoomReset,
   onPrev,
