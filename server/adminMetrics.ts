@@ -1,7 +1,6 @@
-import fs from 'fs/promises'
-import path from 'path'
 import type { AdminAccountMetric, AdminMetricsSummary } from '../shared/adminMetrics.js'
 import type { BillingRecord } from './billing.js'
+import { getDurableStore } from './durableStore.js'
 import type { StorageProvider } from './storage/types.js'
 import type { PlanId } from '../shared/plans.js'
 import { isPlanOverrideEmail } from './founderAccess.js'
@@ -12,19 +11,15 @@ function emptyPlanBreakdown(): Record<PlanId, number> {
   return { free: 0, starter: 0, pro: 0, publisher: 0 }
 }
 
-async function readAllBillingRecords(billingDir: string): Promise<BillingRecord[]> {
-  let files: string[]
-  try {
-    files = await fs.readdir(billingDir)
-  } catch {
-    return []
-  }
-
+async function readAllBillingRecords(dataDir: string): Promise<BillingRecord[]> {
+  const store = getDurableStore(dataDir)
+  const keys = await store.list('billing/')
   const records: BillingRecord[] = []
-  for (const file of files) {
-    if (!file.endsWith('.json')) continue
+  for (const key of keys) {
+    if (!key.endsWith('.json')) continue
+    const raw = await store.readText(key)
+    if (!raw) continue
     try {
-      const raw = await fs.readFile(path.join(billingDir, file), 'utf-8')
       records.push(JSON.parse(raw) as BillingRecord)
     } catch {
       // skip corrupt billing files
@@ -35,7 +30,7 @@ async function readAllBillingRecords(billingDir: string): Promise<BillingRecord[
 
 export async function buildAdminMetrics(
   storage: StorageProvider,
-  billingDir: string,
+  dataDir: string,
 ): Promise<AdminMetricsSummary> {
   let flipbooks: Awaited<ReturnType<StorageProvider['listAllMeta']>> = []
   let warning: string | undefined
@@ -52,7 +47,7 @@ export async function buildAdminMetrics(
     }
   }
 
-  const billingRecords = await readAllBillingRecords(billingDir)
+  const billingRecords = await readAllBillingRecords(dataDir)
 
   const billingByAccount = new Map(billingRecords.map((record) => [record.accountId, record]))
   const accountStats = new Map<string, { flipbookCount: number; storageBytes: number }>()

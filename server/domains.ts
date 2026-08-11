@@ -1,17 +1,18 @@
-import fs from 'fs/promises'
-import path from 'path'
 import { normalizeDomain } from '../shared/flipbook.js'
+import { getDurableStore } from './durableStore.js'
 
 interface DomainRegistry {
   byHost: Record<string, string>
 }
 
 export function createDomainRegistry(dataDir: string) {
-  const filePath = path.join(dataDir, 'domains.json')
+  const store = getDurableStore(dataDir)
+  const key = 'domains.json'
 
   async function readRegistry(): Promise<DomainRegistry> {
+    const raw = await store.readText(key)
+    if (!raw) return { byHost: {} }
     try {
-      const raw = await fs.readFile(filePath, 'utf-8')
       return JSON.parse(raw) as DomainRegistry
     } catch {
       return { byHost: {} }
@@ -19,8 +20,7 @@ export function createDomainRegistry(dataDir: string) {
   }
 
   async function writeRegistry(registry: DomainRegistry) {
-    await fs.mkdir(dataDir, { recursive: true })
-    await fs.writeFile(filePath, JSON.stringify(registry, null, 2))
+    await store.writeText(key, JSON.stringify(registry, null, 2))
   }
 
   return {

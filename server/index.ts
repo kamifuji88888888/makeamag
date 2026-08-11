@@ -937,7 +937,7 @@ app.get('/api/admin/metrics', async (req, res) => {
   }
 
   try {
-    const metrics = await buildAdminMetrics(storage, path.join(DATA_DIR, 'billing'))
+    const metrics = await buildAdminMetrics(storage, DATA_DIR)
     res.json(metrics)
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to load admin metrics'
@@ -961,6 +961,11 @@ app.post('/api/admin/set-password', async (req, res) => {
     if (!password || password.length < 8) {
       res.status(400).json({ error: 'Password must be at least 8 characters' })
       return
+    }
+
+    const existing = await users.findByEmail(email.trim())
+    if (!existing) {
+      await users.findOrCreate(email.trim())
     }
 
     const user = await users.updatePassword(email.trim(), password)

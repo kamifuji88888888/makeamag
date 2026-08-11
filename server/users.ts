@@ -1,7 +1,6 @@
-import fs from 'fs/promises'
-import path from 'path'
 import { v4 as uuidv4 } from 'uuid'
 import { hashPassword, verifyPassword as verifyPasswordHash } from './auth.js'
+import { getDurableStore, type DurableStore } from './durableStore.js'
 
 export interface UserRecord {
   id: string
@@ -21,25 +20,20 @@ function emailKey(email: string): string {
 }
 
 export function createUsersStore(dataDir: string) {
-  const usersDir = path.join(dataDir, 'users')
-  const emailDir = path.join(usersDir, 'emails')
+  const store: DurableStore = getDurableStore(dataDir)
 
-  async function ensureDirs() {
-    await fs.mkdir(emailDir, { recursive: true })
-    await fs.mkdir(usersDir, { recursive: true })
+  function userKey(id: string) {
+    return `users/${id}.json`
   }
 
-  function userPath(id: string) {
-    return path.join(usersDir, `${id}.json`)
-  }
-
-  function emailIndexPath(email: string) {
-    return path.join(emailDir, `${emailKey(email)}.json`)
+  function emailIndexKey(email: string) {
+    return `users/emails/${emailKey(email)}.json`
   }
 
   async function readUser(id: string): Promise<UserRecord | null> {
+    const raw = await store.readText(userKey(id))
+    if (!raw) return null
     try {
-      const raw = await fs.readFile(userPath(id), 'utf-8')
       return JSON.parse(raw) as UserRecord
     } catch {
       return null
@@ -47,16 +41,15 @@ export function createUsersStore(dataDir: string) {
   }
 
   async function writeUser(user: UserRecord) {
-    await ensureDirs()
-    await fs.writeFile(userPath(user.id), JSON.stringify(user, null, 2))
-    await fs.writeFile(emailIndexPath(user.email), JSON.stringify({ userId: user.id }))
+    await store.writeText(userKey(user.id), JSON.stringify(user, null, 2))
+    await store.writeText(emailIndexKey(user.email), JSON.stringify({ userId: user.id }))
   }
 
   return {
     async findByEmail(email: string): Promise<UserRecord | null> {
-      await ensureDirs()
+      const raw = await store.readText(emailIndexKey(email))
+      if (!raw) return null
       try {
-        const raw = await fs.readFile(emailIndexPath(email), 'utf-8')
         const { userId } = JSON.parse(raw) as { userId?: string }
         if (!userId) return null
         return readUser(userId)
@@ -70,18 +63,19 @@ export function createUsersStore(dataDir: string) {
     },
 
     async findByBillingAccountId(billingAccountId: string): Promise<UserRecord | null> {
-      await ensureDirs()
-      try {
-        const files = await fs.readdir(usersDir)
-        for (const file of files) {
-          if (!file.endsWith('.json')) continue
-          const user = JSON.parse(await fs.readFile(path.join(usersDir, file), 'utf-8')) as UserRecord
+      const keys = await store.list('users/')
+      for (const key of keys) {
+        if (!key.endsWith('.json') || key.includes('/emails/')) continue
+        const raw = await store.readText(key)
+        if (!raw) continue
+        try {
+          const user = JSON.parse(raw) as UserRecord
           if (user.billingAccountId === billingAccountId) {
             return user
           }
+        } catch {
+          // skip corrupt records
         }
-      } catch {
-        return null
       }
       return null
     },
@@ -154,7 +148,7 @@ export function createUsersStore(dataDir: string) {
       email: string,
       password: string,
     ): Promise<'invalid' | 'no-password' | UserRecord> {
-      const user = await this.findByEmail(email)
+      const user = await this.findByEmail(normalizeEmail(email))
       if (!user) return 'invalid'
       if (!user.passwordHash) return 'no-password'
       const valid = await verifyPasswordHash(password, user.passwordHash)

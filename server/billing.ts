@@ -1,10 +1,9 @@
-import fs from 'fs/promises'
-import path from 'path'
 import type Stripe from 'stripe'
 import type { BillingAccountStatus, BillingInterval, BillingStatus } from '../shared/billing.js'
 import { isPaidPlan } from '../shared/billing.js'
 import type { PlanId } from '../shared/plans.js'
 import { parsePlanId } from '../shared/plans.js'
+import { getDurableStore } from './durableStore.js'
 import { getStripeClient, isStripeConfigured } from './stripe.js'
 
 export interface BillingRecord {
@@ -120,19 +119,16 @@ export function createBillingStore(
   dataDir: string,
   options?: { matchPlanOverride?: BillingOverrideMatcher },
 ) {
-  const billingDir = path.join(dataDir, 'billing')
+  const store = getDurableStore(dataDir)
 
-  async function ensureDir() {
-    await fs.mkdir(billingDir, { recursive: true })
-  }
-
-  function filePath(accountId: string) {
-    return path.join(billingDir, `${accountId}.json`)
+  function recordKey(accountId: string) {
+    return `billing/${accountId}.json`
   }
 
   async function readRecord(accountId: string): Promise<BillingRecord | null> {
+    const raw = await store.readText(recordKey(accountId))
+    if (!raw) return null
     try {
-      const raw = await fs.readFile(filePath(accountId), 'utf-8')
       return JSON.parse(raw) as BillingRecord
     } catch {
       return null
@@ -140,8 +136,7 @@ export function createBillingStore(
   }
 
   async function writeRecord(record: BillingRecord): Promise<void> {
-    await ensureDir()
-    await fs.writeFile(filePath(record.accountId), JSON.stringify(record, null, 2))
+    await store.writeText(recordKey(record.accountId), JSON.stringify(record, null, 2))
   }
 
   async function getOrCreateRecord(accountId: string): Promise<BillingRecord> {

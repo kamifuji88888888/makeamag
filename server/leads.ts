@@ -1,6 +1,5 @@
-import fs from 'fs/promises'
-import path from 'path'
 import type { CapturedLead } from '../shared/flipbook.js'
+import { getDurableStore } from './durableStore.js'
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -9,11 +8,16 @@ export function isValidLeadEmail(email: string): boolean {
 }
 
 export function createLeadsStore(dataDir: string) {
-  const leadsDir = path.join(dataDir, 'leads')
+  const store = getDurableStore(dataDir)
+
+  function leadsKey(flipbookId: string) {
+    return `leads/${flipbookId}.json`
+  }
 
   async function readLeads(flipbookId: string): Promise<CapturedLead[]> {
+    const raw = await store.readText(leadsKey(flipbookId))
+    if (!raw) return []
     try {
-      const raw = await fs.readFile(path.join(leadsDir, `${flipbookId}.json`), 'utf-8')
       const parsed = JSON.parse(raw) as CapturedLead[]
       return Array.isArray(parsed) ? parsed : []
     } catch {
@@ -22,8 +26,7 @@ export function createLeadsStore(dataDir: string) {
   }
 
   async function writeLeads(flipbookId: string, leads: CapturedLead[]) {
-    await fs.mkdir(leadsDir, { recursive: true })
-    await fs.writeFile(path.join(leadsDir, `${flipbookId}.json`), JSON.stringify(leads, null, 2))
+    await store.writeText(leadsKey(flipbookId), JSON.stringify(leads, null, 2))
   }
 
   return {

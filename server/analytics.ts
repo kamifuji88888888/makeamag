@@ -1,5 +1,3 @@
-import fs from 'fs/promises'
-import path from 'path'
 import type {
   AnalyticsDailyStat,
   AnalyticsEventInput,
@@ -9,6 +7,7 @@ import type {
   AnalyticsSummary,
 } from '../shared/analytics.js'
 import { normalizeReferrer, todayKey } from '../shared/analytics.js'
+import { getDurableStore } from './durableStore.js'
 
 interface LinkAggregate {
   label: string
@@ -71,11 +70,16 @@ function ensureDaily(store: AnalyticsStore, date: string): DailyAggregate {
 }
 
 export function createAnalyticsStore(dataDir: string) {
-  const analyticsDir = path.join(dataDir, 'analytics')
+  const durable = getDurableStore(dataDir)
+
+  function storeKey(flipbookId: string) {
+    return `analytics/${flipbookId}.json`
+  }
 
   async function readStore(flipbookId: string): Promise<AnalyticsStore> {
+    const raw = await durable.readText(storeKey(flipbookId))
+    if (!raw) return emptyStore()
     try {
-      const raw = await fs.readFile(path.join(analyticsDir, `${flipbookId}.json`), 'utf-8')
       return JSON.parse(raw) as AnalyticsStore
     } catch {
       return emptyStore()
@@ -83,11 +87,7 @@ export function createAnalyticsStore(dataDir: string) {
   }
 
   async function writeStore(flipbookId: string, store: AnalyticsStore) {
-    await fs.mkdir(analyticsDir, { recursive: true })
-    await fs.writeFile(
-      path.join(analyticsDir, `${flipbookId}.json`),
-      JSON.stringify(store, null, 2),
-    )
+    await durable.writeText(storeKey(flipbookId), JSON.stringify(store, null, 2))
   }
 
   function applyEvent(store: AnalyticsStore, event: AnalyticsEventInput) {
