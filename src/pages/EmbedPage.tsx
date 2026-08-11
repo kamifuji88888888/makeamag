@@ -5,6 +5,7 @@ import { FlipbookViewer } from '../components/FlipbookViewer'
 import { LoadingProgress } from '../components/LoadingProgress'
 import { PasswordGate } from '../components/PasswordGate'
 import { brandingScopeStyle } from '../lib/branding'
+import { sharePathId } from '../../shared/flipbook'
 import { useFlipbookDocumentMeta } from '../lib/flipbookDocumentMeta'
 import { verifyStripeSession } from '../lib/api'
 
@@ -15,6 +16,13 @@ export function EmbedPage() {
     searchParams.get('chrome') === '0' || searchParams.get('chrome') === 'false'
   const { state, handleUnlock, handleMonetizationUnlock, handleLeadCaptureSubmit } = useFlipbookLoader(id)
   const [stripeUnlocked, setStripeUnlocked] = useState(false)
+
+  const publicPathId =
+    state.status === 'ready'
+      ? state.shortId
+      : state.status === 'locked'
+        ? sharePathId(state.meta)
+        : id
 
   useFlipbookDocumentMeta({
     enabled: state.status === 'ready' || state.status === 'locked',
@@ -30,7 +38,7 @@ export function EmbedPage() {
         : state.status === 'locked'
           ? state.meta.publication
           : { title: '', publisherName: '', issueLabel: '', description: '' },
-    flipbookId: id,
+    flipbookId: publicPathId,
     visibility:
       state.status === 'ready'
         ? state.visibility
@@ -43,7 +51,7 @@ export function EmbedPage() {
         : state.status === 'locked'
           ? state.meta.isPasswordProtected
           : false,
-    pagePath: id ? `/embed/${id}` : undefined,
+    pagePath: publicPathId ? `/embed/${publicPathId}` : undefined,
   })
 
   useEffect(() => {
@@ -114,6 +122,7 @@ export function EmbedPage() {
         fileName={state.fileName}
         mode="embed"
         flipbookId={id ?? null}
+        sharePathId={publicPathId ?? null}
         videoEmbeds={state.videoEmbeds}
         linkHotspots={state.linkHotspots}
         popUpPanels={state.popUpPanels}

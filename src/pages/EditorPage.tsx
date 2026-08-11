@@ -20,7 +20,7 @@ import type {
   TocEntry,
   VideoEmbed,
 } from '../../shared/flipbook'
-import { DEFAULT_BRANDING, DEFAULT_LEAD_CAPTURE, DEFAULT_MONETIZATION, DEFAULT_POP_UP_PANEL_STYLE, DEFAULT_PUBLICATION, DEFAULT_VISIBILITY, normalizeBranding, normalizeLeadCapture, normalizeMonetization, normalizePopUpPanelStyle, normalizePublication, normalizeVisibility } from '../../shared/flipbook'
+import { DEFAULT_BRANDING, DEFAULT_LEAD_CAPTURE, DEFAULT_MONETIZATION, DEFAULT_POP_UP_PANEL_STYLE, DEFAULT_PUBLICATION, DEFAULT_VISIBILITY, normalizeBranding, normalizeLeadCapture, normalizeMonetization, normalizePopUpPanelStyle, normalizePublication, normalizeVisibility, sharePathId } from '../../shared/flipbook'
 import {
   deleteFlipbookLogo,
   fetchFlipbook,
@@ -396,7 +396,7 @@ export function EditorPage() {
             pageTexts: result.pageTexts,
             hasSubscriberAccess: meta.hasSubscriberAccess,
             subscriberAccessCode: '',
-            shareUrl: getShareUrl(meta.id, meta.branding),
+            shareUrl: getShareUrl(sharePathId(meta), meta.branding),
             visibility: normalizeVisibility(meta.visibility),
             isPasswordProtected: meta.isPasswordProtected,
           })
@@ -569,14 +569,10 @@ export function EditorPage() {
         return
       }
 
-      updateReady((prev) => {
-        const nextBranding = sanitizeBrandingForPlan(normalized, plan.planId)
-        return {
-          ...prev,
-          branding: nextBranding,
-          shareUrl: prev.flipbookId ? getShareUrl(prev.flipbookId, nextBranding) : prev.shareUrl,
-        }
-      })
+      updateReady((prev) => ({
+        ...prev,
+        branding: sanitizeBrandingForPlan(normalized, plan.planId),
+      }))
     },
     [plan, showUpgrade, updateReady],
   )
@@ -801,7 +797,7 @@ export function EditorPage() {
       setIsPublishing(true)
       try {
         if (state.flipbookId) {
-          await updateFlipbook(state.flipbookId, {
+          const updated = await updateFlipbook(state.flipbookId, {
             videoEmbeds: state.videoEmbeds,
             ...publisherPayload(state, plan.planId),
             ...(password ? { password } : {}),
@@ -813,7 +809,7 @@ export function EditorPage() {
           }
           setState({
             ...state,
-            shareUrl: getShareUrl(state.flipbookId, state.branding),
+            shareUrl: getShareUrl(sharePathId(updated), state.branding),
             isPasswordProtected: Boolean(password) || state.isPasswordProtected,
             hasSubscriberAccess:
               Boolean(state.subscriberAccessCode.trim()) || state.hasSubscriberAccess,
@@ -849,7 +845,7 @@ export function EditorPage() {
             monetization: normalizeMonetization(meta.monetization),
             hasSubscriberAccess: meta.hasSubscriberAccess,
             subscriberAccessCode: '',
-            shareUrl: getShareUrl(meta.id, meta.branding),
+            shareUrl: getShareUrl(sharePathId(meta), meta.branding),
             isPasswordProtected: meta.isPasswordProtected,
             visibility: normalizeVisibility(meta.visibility),
           })
@@ -1051,6 +1047,19 @@ export function EditorPage() {
               fileName={state.fileName}
               mode="editor"
               flipbookId={state.flipbookId}
+              sharePathId={
+                state.shareUrl
+                  ? (() => {
+                      try {
+                        return (
+                          new URL(state.shareUrl).pathname.split('/').filter(Boolean).pop() ?? null
+                        )
+                      } catch {
+                        return null
+                      }
+                    })()
+                  : null
+              }
               videoEmbeds={state.videoEmbeds}
               linkHotspots={state.linkHotspots}
               popUpPanels={state.popUpPanels}

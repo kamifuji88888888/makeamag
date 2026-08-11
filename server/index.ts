@@ -4,8 +4,6 @@ import express from 'express'
 import multer from 'multer'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import { v4 as uuidv4 } from 'uuid'
-import { MAX_PDF_UPLOAD_BYTES, getPlan, maxPdfUploadBytes, parsePlanId } from '../shared/plans.js'
 import type { AnalyticsEventInput } from '../shared/analytics.js'
 import type {
   BrandingConfig,
@@ -20,6 +18,7 @@ import type {
   TocEntry,
   VideoEmbed,
 } from '../shared/flipbook.js'
+import { createShortId, isLikelyShortId } from '../shared/shortId.js'
 import {
   DEFAULT_BRANDING,
   DEFAULT_LEAD_CAPTURE,
@@ -33,8 +32,10 @@ import {
   normalizePopUpPanels,
   normalizePublication,
   normalizeVisibility,
+  sharePathId,
   toPublicMeta,
 } from '../shared/flipbook.js'
+import { MAX_PDF_UPLOAD_BYTES, getPlan, maxPdfUploadBytes, parsePlanId } from '../shared/plans.js'
 import {
   clearSessionCookie,
   createAccessToken,
@@ -59,6 +60,7 @@ import { createDomainRegistry } from './domains.js'
 import { createAnalyticsStore } from './analytics.js'
 import { createLeadsStore, isValidLeadEmail } from './leads.js'
 import { createStorage } from './storage/index.js'
+import { createShortIdRegistry } from './shortIds.js'
 import { buildAdminMetrics, isAdminAuthorized } from './adminMetrics.js'
 import { createBillingStore, isBillingConfigured } from './billing.js'
 import {
@@ -90,9 +92,52 @@ const PORT = Number(process.env.PORT) || 3001
 const isProduction = process.env.NODE_ENV === 'production'
 const storage = createStorage()
 const domains = createDomainRegistry(DATA_DIR)
+const shortIds = createShortIdRegistry(DATA_DIR)
 const analytics = createAnalyticsStore(DATA_DIR)
 const leads = createLeadsStore(DATA_DIR)
 const users = createUsersStore(DATA_DIR)
+
+async function allocateUniqueShortId(): Promise<string> {
+  for (let attempt = 0; attempt < 12; attempt++) {
+    const candidate = createShortId()
+    if (await shortIds.isTaken(candidate)) continue
+    const existing = await storage.readMeta(candidate)
+    if (existing) continue
+    return candidate
+  }
+  throw new Error('Could not allocate a unique short id')
+}
+
+/** Resolve by storage id or short public id; assign a short id to legacy UUID flipbooks. */
+async function resolveFlipbookMeta(idOrShort: string): Promise<FlipbookStoredMeta | null> {
+  const key = idOrShort.trim()
+  if (!key) return null
+
+  let meta = await storage.readMeta(key)
+  if (!meta && isLikelyShortId(key)) {
+    const canonicalId = await shortIds.resolve(key)
+    if (canonicalId) {
+      meta = await storage.readMeta(canonicalId)
+    }
+  }
+  if (!meta) return null
+
+  if (meta.shortId?.trim()) {
+    if (meta.shortId !== meta.id) {
+      await shortIds.assign(meta.shortId, meta.id)
+    }
+    return meta
+  }
+
+  // Legacy UUID flipbooks: mint a short public id and keep the long storage id.
+  const shortId = meta.id.length <= 12 && isLikelyShortId(meta.id) ? meta.id : await allocateUniqueShortId()
+  const updated: FlipbookStoredMeta = { ...meta, shortId }
+  await storage.saveMeta(updated)
+  if (shortId !== updated.id) {
+    await shortIds.assign(shortId, updated.id)
+  }
+  return updated
+}
 
 const billing = createBillingStore(DATA_DIR, {
   async matchPlanOverride(accountId) {
@@ -505,7 +550,7 @@ app.post('/api/flipbooks', upload.single('pdf'), async (req, res) => {
       return
     }
 
-    const id = uuidv4()
+    const id = await allocateUniqueShortId()
     let videoEmbeds: VideoEmbed[] = []
     if (req.body.videoEmbeds) {
       videoEmbeds = JSON.parse(req.body.videoEmbeds) as VideoEmbed[]
@@ -545,6 +590,7 @@ app.post('/api/flipbooks', upload.single('pdf'), async (req, res) => {
 
     const meta: FlipbookStoredMeta = {
       id,
+      shortId: id,
       fileName: req.file.originalname,
       createdAt: new Date().toISOString(),
       videoEmbeds,
@@ -580,7 +626,7 @@ app.post('/api/flipbooks', upload.single('pdf'), async (req, res) => {
 })
 
 app.get('/api/flipbooks/:id', async (req, res) => {
-  const meta = await storage.readMeta(req.params.id)
+  const meta = await resolveFlipbookMeta(req.params.id)
   if (!meta) {
     res.status(404).json({ error: 'Flipbook not found' })
     return
@@ -589,7 +635,7 @@ app.get('/api/flipbooks/:id', async (req, res) => {
 })
 
 app.post('/api/flipbooks/:id/unlock', async (req, res) => {
-  const meta = await storage.readMeta(req.params.id)
+  const meta = await resolveFlipbookMeta(req.params.id)
   if (!meta) {
     res.status(404).json({ error: 'Flipbook not found' })
     return
@@ -610,7 +656,7 @@ app.post('/api/flipbooks/:id/unlock', async (req, res) => {
 })
 
 app.post('/api/flipbooks/:id/monetization-unlock', async (req, res) => {
-  const meta = await storage.readMeta(req.params.id)
+  const meta = await resolveFlipbookMeta(req.params.id)
   if (!meta) {
     res.status(404).json({ error: 'Flipbook not found' })
     return
@@ -631,7 +677,7 @@ app.post('/api/flipbooks/:id/monetization-unlock', async (req, res) => {
 })
 
 app.post('/api/flipbooks/:id/lead-capture', async (req, res) => {
-  const meta = await storage.readMeta(req.params.id)
+  const meta = await resolveFlipbookMeta(req.params.id)
   if (!meta) {
     res.status(404).json({ error: 'Flipbook not found' })
     return
@@ -660,7 +706,7 @@ app.post('/api/flipbooks/:id/lead-capture', async (req, res) => {
 })
 
 app.get('/api/flipbooks/:id/leads', async (req, res) => {
-  const meta = await storage.readMeta(req.params.id)
+  const meta = await resolveFlipbookMeta(req.params.id)
   if (!meta) {
     res.status(404).json({ error: 'Flipbook not found' })
     return
@@ -677,7 +723,7 @@ app.get('/api/flipbooks/:id/leads', async (req, res) => {
 })
 
 app.get('/api/flipbooks/:id/pdf', async (req, res) => {
-  const meta = await storage.readMeta(req.params.id)
+  const meta = await resolveFlipbookMeta(req.params.id)
   if (!meta) {
     res.status(404).json({ error: 'Flipbook not found' })
     return
@@ -702,7 +748,7 @@ app.get('/api/flipbooks/:id/pdf', async (req, res) => {
 
 app.post('/api/flipbooks/:id/pdf', upload.single('pdf'), async (req, res) => {
   try {
-    const meta = await storage.readMeta(req.params.id)
+    const meta = await resolveFlipbookMeta(req.params.id)
     if (!meta) {
       res.status(404).json({ error: 'Flipbook not found' })
       return
@@ -740,7 +786,7 @@ app.post('/api/flipbooks/:id/pdf', upload.single('pdf'), async (req, res) => {
 })
 
 app.patch('/api/flipbooks/:id', async (req, res) => {
-  const meta = await storage.readMeta(req.params.id)
+  const meta = await resolveFlipbookMeta(req.params.id)
   if (!meta) {
     res.status(404).json({ error: 'Flipbook not found' })
     return
@@ -1028,7 +1074,7 @@ app.post('/api/flipbooks/:id/stripe/connect', async (req, res) => {
       return
     }
 
-    const meta = await storage.readMeta(req.params.id)
+    const meta = await resolveFlipbookMeta(req.params.id)
     if (!meta) {
       res.status(404).json({ error: 'Flipbook not found' })
       return
@@ -1058,7 +1104,7 @@ app.get('/api/stripe/return', async (req, res) => {
 app.get('/api/stripe/refresh', async (req, res) => {
   try {
     const flipbookId = typeof req.query.flipbookId === 'string' ? req.query.flipbookId : ''
-    const meta = await storage.readMeta(flipbookId)
+    const meta = await resolveFlipbookMeta(flipbookId)
     if (!meta) {
       res.status(404).json({ error: 'Flipbook not found' })
       return
@@ -1079,7 +1125,7 @@ app.post('/api/flipbooks/:id/stripe-checkout', async (req, res) => {
       return
     }
 
-    const meta = await storage.readMeta(req.params.id)
+    const meta = await resolveFlipbookMeta(req.params.id)
     if (!meta) {
       res.status(404).json({ error: 'Flipbook not found' })
       return
@@ -1101,7 +1147,7 @@ app.post('/api/flipbooks/:id/stripe-verify', async (req, res) => {
       return
     }
 
-    const meta = await storage.readMeta(req.params.id)
+    const meta = await resolveFlipbookMeta(req.params.id)
     if (!meta) {
       res.status(404).json({ error: 'Flipbook not found' })
       return
@@ -1127,7 +1173,7 @@ app.post('/api/flipbooks/:id/stripe-verify', async (req, res) => {
 })
 
 app.post('/api/flipbooks/:id/logo', logoUpload.single('logo'), async (req, res) => {
-  const meta = await storage.readMeta(req.params.id)
+  const meta = await resolveFlipbookMeta(req.params.id)
   if (!meta) {
     res.status(404).json({ error: 'Flipbook not found' })
     return
@@ -1154,7 +1200,7 @@ app.post('/api/flipbooks/:id/logo', logoUpload.single('logo'), async (req, res) 
 })
 
 app.delete('/api/flipbooks/:id/logo', async (req, res) => {
-  const meta = await storage.readMeta(req.params.id)
+  const meta = await resolveFlipbookMeta(req.params.id)
   if (!meta) {
     res.status(404).json({ error: 'Flipbook not found' })
     return
@@ -1173,7 +1219,13 @@ app.delete('/api/flipbooks/:id/logo', async (req, res) => {
 })
 
 app.get('/api/flipbooks/:id/logo', async (req, res) => {
-  const logo = await storage.readLogo(req.params.id)
+  const meta = await resolveFlipbookMeta(req.params.id)
+  if (!meta) {
+    res.status(404).json({ error: 'Logo not found' })
+    return
+  }
+
+  const logo = await storage.readLogo(meta.id)
   if (!logo) {
     res.status(404).json({ error: 'Logo not found' })
     return
@@ -1185,7 +1237,7 @@ app.get('/api/flipbooks/:id/logo', async (req, res) => {
 })
 
 app.post('/api/flipbooks/:id/cover', coverUpload.single('cover'), async (req, res) => {
-  const meta = await storage.readMeta(req.params.id)
+  const meta = await resolveFlipbookMeta(req.params.id)
   if (!meta) {
     res.status(404).json({ error: 'Flipbook not found' })
     return
@@ -1207,7 +1259,13 @@ app.post('/api/flipbooks/:id/cover', coverUpload.single('cover'), async (req, re
 })
 
 app.get('/api/flipbooks/:id/cover', async (req, res) => {
-  const cover = await storage.readCover(req.params.id)
+  const meta = await resolveFlipbookMeta(req.params.id)
+  if (!meta) {
+    res.status(404).json({ error: 'Cover not found' })
+    return
+  }
+
+  const cover = await storage.readCover(meta.id)
   if (cover) {
     res.setHeader('Content-Type', cover.contentType)
     res.setHeader('Cache-Control', 'public, max-age=86400')
@@ -1215,7 +1273,7 @@ app.get('/api/flipbooks/:id/cover', async (req, res) => {
     return
   }
 
-  const logo = await storage.readLogo(req.params.id)
+  const logo = await storage.readLogo(meta.id)
   if (logo) {
     res.setHeader('Content-Type', logo.contentType)
     res.setHeader('Cache-Control', 'public, max-age=3600')
@@ -1227,7 +1285,7 @@ app.get('/api/flipbooks/:id/cover', async (req, res) => {
 })
 
 app.post('/api/flipbooks/:id/events', async (req, res) => {
-  const meta = await storage.readMeta(req.params.id)
+  const meta = await resolveFlipbookMeta(req.params.id)
   if (!meta) {
     res.status(404).json({ error: 'Flipbook not found' })
     return
@@ -1243,12 +1301,12 @@ app.post('/api/flipbooks/:id/events', async (req, res) => {
     return
   }
 
-  await analytics.recordEvents(req.params.id, events)
+  await analytics.recordEvents(meta.id, events)
   res.status(204).end()
 })
 
 app.get('/api/flipbooks/:id/analytics', async (req, res) => {
-  const meta = await storage.readMeta(req.params.id)
+  const meta = await resolveFlipbookMeta(req.params.id)
   if (!meta) {
     res.status(404).json({ error: 'Flipbook not found' })
     return
@@ -1261,7 +1319,7 @@ app.get('/api/flipbooks/:id/analytics', async (req, res) => {
   }
 
   const days = Math.min(90, Math.max(7, Number(req.query.days) || 30))
-  const summary = await analytics.getSummary(req.params.id, days)
+  const summary = await analytics.getSummary(meta.id, days)
   res.json(summary)
 })
 
@@ -1293,17 +1351,18 @@ if (isProduction) {
     }
 
     try {
-      const meta = await storage.readMeta(flipbookId)
+      const meta = await resolveFlipbookMeta(flipbookId)
       if (meta && indexHtmlTemplate) {
         const configuredOrigin = (process.env.SERVER_URL ?? process.env.CLIENT_URL ?? '').replace(
           /\/$/,
           '',
         )
         const siteOrigin = configuredOrigin || `${req.protocol}://${req.get('host')}`
+        const pathId = sharePathId(meta)
         const metaTags = buildShareMetaTags(
           { ...meta, publication: normalizePublication(meta.publication) },
           {
-            canonicalUrl: `${siteOrigin}/${route}/${flipbookId}`,
+            canonicalUrl: `${siteOrigin}/${route}/${pathId}`,
             siteOrigin,
           },
         )

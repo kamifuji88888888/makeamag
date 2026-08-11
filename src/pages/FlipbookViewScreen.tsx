@@ -7,7 +7,7 @@ import { PasswordGate } from '../components/PasswordGate'
 import { BrandedNav } from '../components/BrandedNav'
 import { brandingScopeStyle } from '../lib/branding'
 import { verifyStripeSession } from '../lib/api'
-import { displayTitle } from '../../shared/flipbook'
+import { displayTitle, sharePathId } from '../../shared/flipbook'
 import { useFlipbookDocumentMeta } from '../lib/flipbookDocumentMeta'
 
 interface FlipbookViewScreenProps {
@@ -20,6 +20,13 @@ export function FlipbookViewScreen({ id, isCustomDomain = false }: FlipbookViewS
   const [stripeUnlocked, setStripeUnlocked] = useState(false)
   const { state, handleUnlock, handleMonetizationUnlock, handleLeadCaptureSubmit } = useFlipbookLoader(id)
 
+  const publicPathId =
+    state.status === 'ready'
+      ? state.shortId
+      : state.status === 'locked'
+        ? sharePathId(state.meta)
+        : id
+
   useFlipbookDocumentMeta({
     enabled: state.status === 'ready' || state.status === 'locked',
     fileName:
@@ -30,7 +37,7 @@ export function FlipbookViewScreen({ id, isCustomDomain = false }: FlipbookViewS
         : state.status === 'locked'
           ? state.meta.publication
           : { title: '', publisherName: '', issueLabel: '', description: '' },
-    flipbookId: id,
+    flipbookId: publicPathId,
     visibility:
       state.status === 'ready'
         ? state.visibility
@@ -43,7 +50,7 @@ export function FlipbookViewScreen({ id, isCustomDomain = false }: FlipbookViewS
         : state.status === 'locked'
           ? state.meta.isPasswordProtected
           : false,
-    pagePath: id ? `/view/${id}` : undefined,
+    pagePath: publicPathId ? `/view/${publicPathId}` : undefined,
   })
 
   useEffect(() => {
@@ -124,6 +131,7 @@ export function FlipbookViewScreen({ id, isCustomDomain = false }: FlipbookViewS
         fileName={state.fileName}
         mode="shared"
         flipbookId={id ?? null}
+        sharePathId={publicPathId ?? null}
         videoEmbeds={state.videoEmbeds}
         linkHotspots={state.linkHotspots}
         popUpPanels={state.popUpPanels}

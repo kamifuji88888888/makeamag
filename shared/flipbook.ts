@@ -107,6 +107,8 @@ export const DEFAULT_VISIBILITY: FlipbookVisibility = 'public'
 
 export interface FlipbookPublicMeta {
   id: string
+  /** Short public path id for share/embed URLs (always present for new/migrated flipbooks). */
+  shortId: string
   fileName: string
   createdAt: string
   videoEmbeds: VideoEmbed[]
@@ -124,7 +126,9 @@ export interface FlipbookPublicMeta {
   leadCapture: LeadCaptureConfig
 }
 
-export interface FlipbookStoredMeta extends FlipbookPublicMeta {
+export interface FlipbookStoredMeta extends Omit<FlipbookPublicMeta, 'shortId'> {
+  /** Present after first publish on this code, or after lazy migration of legacy UUID flipbooks. */
+  shortId?: string
   passwordHash?: string
   subscriberAccessHash?: string
   stripeAccountId?: string
@@ -446,6 +450,7 @@ export function shouldNoindexFlipbook(
 export function toPublicMeta(meta: FlipbookStoredMeta): FlipbookPublicMeta {
   return {
     id: meta.id,
+    shortId: meta.shortId?.trim() || meta.id,
     fileName: meta.fileName,
     createdAt: meta.createdAt,
     videoEmbeds: meta.videoEmbeds ?? [],
@@ -462,6 +467,11 @@ export function toPublicMeta(meta: FlipbookStoredMeta): FlipbookPublicMeta {
     monetization: publicMonetizationFromStored(meta.monetization, meta.stripeAccountId),
     leadCapture: normalizeLeadCapture(meta.leadCapture),
   }
+}
+
+/** Prefer the short public id for share/embed/reader path segments. */
+export function sharePathId(meta: Pick<FlipbookPublicMeta, 'id' | 'shortId'>): string {
+  return meta.shortId?.trim() || meta.id
 }
 
 export function displayTitle(meta: Pick<FlipbookPublicMeta, 'fileName' | 'publication'>): string {

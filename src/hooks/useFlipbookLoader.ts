@@ -12,7 +12,7 @@ import type {
   TocEntry,
   VideoEmbed,
 } from '../../shared/flipbook'
-import { normalizeBranding, normalizeLeadCapture, normalizeMonetization, normalizePopUpPanelStyle, normalizePublication, normalizeVisibility } from '../../shared/flipbook'
+import { normalizeBranding, normalizeLeadCapture, normalizeMonetization, normalizePopUpPanelStyle, normalizePublication, normalizeVisibility, sharePathId } from '../../shared/flipbook'
 import {
   clearAccessToken,
   fetchFlipbook,
@@ -50,6 +50,7 @@ export type FlipbookLoadState =
       monetizationUnlocked: boolean
       leadCaptureUnlocked: boolean
       pageTexts: string[]
+      shortId: string
     }
   | { status: 'error'; message: string }
 
@@ -97,6 +98,7 @@ export function useFlipbookLoader(id: string | undefined) {
         monetizationUnlocked: isMonetizationUnlocked(flipbookId, monetization),
         leadCaptureUnlocked: isLeadCaptureUnlocked(flipbookId, leadCapture),
         pageTexts: result.pageTexts,
+        shortId: sharePathId(meta),
       })
     } catch (error) {
       if (error instanceof Error && error.message === 'Password required') {

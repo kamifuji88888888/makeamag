@@ -47,6 +47,8 @@ interface FlipbookViewerProps {
   fileName: string
   mode?: 'editor' | 'shared' | 'embed'
   flipbookId?: string | null
+  /** Public path segment for share/social links (short id when available). */
+  sharePathId?: string | null
   videoEmbeds?: VideoEmbed[]
   linkHotspots?: LinkHotspot[]
   popUpPanels?: PopUpPanel[]
@@ -236,6 +238,7 @@ export function FlipbookViewer({
   fileName,
   mode = 'editor',
   flipbookId = null,
+  sharePathId = null,
   videoEmbeds = [],
   linkHotspots = [],
   popUpPanels = [],
@@ -377,6 +380,7 @@ export function FlipbookViewer({
   const bookKey = `${layoutMode}-${width}-${height}-${totalPages}`
   const { trackPageView, trackLinkClick, trackVideoPlay, trackPaywallImpression, trackPaywallClick, trackLeadCaptureImpression, trackLeadCaptureSubmit } =
     useFlipbookAnalytics(flipbookId, mode)
+  const publicPathId = sharePathId || flipbookId
 
   const openPaywall = useCallback(() => {
     setShowPaywall(true)
@@ -919,7 +923,7 @@ export function FlipbookViewer({
 
             {isEmbed && !branding.hidePlatformChrome && (
               <a
-                href={flipbookId ? `/view/${flipbookId}` : '/'}
+                href={publicPathId ? `/view/${publicPathId}` : '/'}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="apple-link pb-0.5 text-xs"
@@ -1026,9 +1030,9 @@ export function FlipbookViewer({
         />
       )}
 
-      {showSocialShareDialog && flipbookId && (
+      {showSocialShareDialog && publicPathId && (
         <SocialShareDialog
-          flipbookId={flipbookId}
+          flipbookId={publicPathId}
           fileName={fileName}
           publication={publication}
           branding={branding}

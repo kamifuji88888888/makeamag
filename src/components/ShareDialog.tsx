@@ -50,10 +50,18 @@ export function ShareDialog({
   const [coverSyncFailed, setCoverSyncFailed] = useState(false)
 
   const shareUrl = useMemo(
-    () => getShareUrl(flipbookId, branding) || initialShareUrl,
+    () => initialShareUrl || getShareUrl(flipbookId, branding),
     [branding, flipbookId, initialShareUrl],
   )
   const brandedReaderUrl = useMemo(() => getBrandedReaderUrl(branding), [branding])
+  const publicPathId = useMemo(() => {
+    try {
+      const segment = new URL(shareUrl).pathname.split('/').filter(Boolean).pop()
+      return segment || flipbookId
+    } catch {
+      return flipbookId
+    }
+  }, [flipbookId, shareUrl])
 
   useEffect(() => {
     if (!coverPageImage) return
@@ -82,7 +90,7 @@ export function ShareDialog({
   const embedTitle = displayTitle({ fileName, publication })
   const qrFilename = `${embedTitle.replace(/[^\w.-]+/g, '-').toLowerCase()}-qr.png`
 
-  const embedCode = getEmbedCode(flipbookId, {
+  const embedCode = getEmbedCode(publicPathId, {
     width: embedWidth,
     height: embedHeight,
     branding,
