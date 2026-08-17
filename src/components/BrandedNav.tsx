@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { BrandingConfig, PublicationInfo } from '../../shared/flipbook'
 import { displayTitle } from '../../shared/flipbook'
@@ -22,14 +23,21 @@ export function BrandedNav({
 }: BrandedNavProps) {
   const title = displayTitle({ fileName, publication })
   const logoUrl = flipbookId ? resolveLogoUrl(flipbookId, branding) : branding.logoUrl
+  const [logoFailed, setLogoFailed] = useState(false)
+  const showLogo = Boolean(logoUrl) && !logoFailed
   const showPlatformBrand = !branding.hidePlatformChrome && !isCustomDomain
 
   return (
     <header className="apple-nav [@media(orientation:landscape)_and_(max-height:500px)]:hidden">
       <div className="mx-auto flex h-[52px] max-w-[980px] items-center justify-between gap-4 px-6">
         <div className="flex min-w-0 items-center gap-3">
-          {logoUrl ? (
-            <img src={logoUrl} alt={title} className="h-8 max-w-[160px] object-contain object-left" />
+          {showLogo ? (
+            <img
+              src={logoUrl}
+              alt={title}
+              className="h-8 max-w-[160px] object-contain object-left"
+              onError={() => setLogoFailed(true)}
+            />
           ) : showPlatformBrand ? (
             <Link to="/" className="shrink-0 text-[1.0625rem] font-semibold tracking-tight text-apple-text">
               MakeAMag

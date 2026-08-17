@@ -21,15 +21,12 @@ export function getLogoApiUrl(flipbookId: string): string {
   return `/api/flipbooks/${flipbookId}/logo`
 }
 
-export function resolveLogoUrl(flipbookId: string, branding: BrandingConfig): string {
+export function resolveLogoUrl(_flipbookId: string, branding: BrandingConfig): string {
   const normalized = normalizeBranding(branding)
   if (normalized.logoUrl.startsWith('http') || normalized.logoUrl.startsWith('data:')) {
     return normalized.logoUrl
   }
-  if (normalized.logoUrl) {
-    return normalized.logoUrl
-  }
-  return getLogoApiUrl(flipbookId)
+  return normalized.logoUrl
 }
 
 export function getCanonicalHost(): string {
