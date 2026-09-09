@@ -37,6 +37,7 @@ import {
 import type { LibraryEntry } from '../lib/libraryStorage'
 import { saveDraftPdf } from '../lib/libraryStorage'
 import { useFlipbookLibrary } from '../hooks/useFlipbookLibrary'
+import { useAuth } from '../context/AuthContext'
 import { extractPdfOutline, renderPdfFromBuffer, renderPdfToImages } from '../lib/pdfRenderer'
 import { syncShareCover } from '../lib/shareCover'
 import { createThumbnailFromDataUrl } from '../lib/thumbnail'
@@ -152,6 +153,7 @@ export function EditorPage() {
   const [stripeNotice, setStripeNotice] = useState<string | null>(null)
   const [searchParams, setSearchParams] = useSearchParams()
   const library = useFlipbookLibrary()
+  const { user } = useAuth()
   const plan = usePlanContext()
   const [upgradePrompt, setUpgradePrompt] = useState<{
     title: string
@@ -173,6 +175,13 @@ export function EditorPage() {
   useEffect(() => {
     void fetchStripeStatus().then((status) => setStripeConfigured(status.configured))
   }, [])
+
+  useEffect(() => {
+    if (!user) return
+    void library.syncFromAccount().catch(() => {
+      // Library still works from local drafts if the account sync fails.
+    })
+  }, [user, library.syncFromAccount])
 
   useEffect(() => {
     const flipbookId = searchParams.get('stripeConnected')

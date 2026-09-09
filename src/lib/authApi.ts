@@ -156,10 +156,17 @@ export async function resetPassword(token: string, password: string): Promise<Au
 
 export interface PublishedFlipbookSummary {
   id: string
+  shortId?: string
   fileName: string
   createdAt: string
-  publication: { title: string; publisherName: string; issueLabel: string; description?: string }
+  publication: {
+    title: string
+    publisherName: string
+    issueLabel: string
+    description: string
+  }
   isPasswordProtected: boolean
+  visibility?: 'public' | 'unlisted'
 }
 
 export async function fetchPublishedFlipbooks(): Promise<PublishedFlipbookSummary[]> {

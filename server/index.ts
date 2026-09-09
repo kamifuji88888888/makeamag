@@ -218,8 +218,30 @@ function canEditFlipbook(
   meta: FlipbookStoredMeta,
   session: ReturnType<typeof readSessionFromRequest>,
 ): boolean {
-  if (!meta.ownerId) return true
-  return session?.userId === meta.ownerId
+  if (!meta.ownerId && !meta.ownerEmail) return true
+  if (!session) return false
+  if (meta.ownerId && session.userId === meta.ownerId) return true
+  if (meta.ownerEmail && session.email.trim().toLowerCase() === meta.ownerEmail.trim().toLowerCase()) {
+    return true
+  }
+  return false
+}
+
+async function attachOwnerToMeta(
+  meta: FlipbookStoredMeta,
+  session: NonNullable<ReturnType<typeof readSessionFromRequest>>,
+): Promise<FlipbookStoredMeta> {
+  const email = session.email.trim().toLowerCase()
+  const needsUpdate =
+    meta.ownerId !== session.userId || (meta.ownerEmail?.trim().toLowerCase() ?? '') !== email
+  if (!needsUpdate) return meta
+  const updated: FlipbookStoredMeta = {
+    ...meta,
+    ownerId: session.userId,
+    ownerEmail: email,
+  }
+  await storage.saveMeta(updated)
+  return updated
 }
 
 function billingAccountForSession(
@@ -519,18 +541,59 @@ app.get('/api/auth/flipbooks', async (req, res) => {
     return
   }
 
+  const sessionEmail = session.email.trim().toLowerCase()
   const all = await storage.listAllMeta()
-  const owned = all
-    .filter((meta) => meta.ownerId === session.userId)
-    .map((meta) => ({
-      id: meta.id,
-      fileName: meta.fileName,
-      createdAt: meta.createdAt,
-      publication: meta.publication,
-      isPasswordProtected: meta.isPasswordProtected,
-    }))
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+  const owned: Array<{
+    id: string
+    shortId?: string
+    fileName: string
+    createdAt: string
+    publication: FlipbookStoredMeta['publication']
+    isPasswordProtected: boolean
+    visibility: FlipbookStoredMeta['visibility']
+  }> = []
 
+  for (const meta of all) {
+    const emailMatch =
+      Boolean(meta.ownerEmail) && meta.ownerEmail!.trim().toLowerCase() === sessionEmail
+    const idMatch = meta.ownerId === session.userId
+
+    let isOwner = idMatch || emailMatch
+
+    // After ephemeral user-store wipes, magazines keep a dead ownerId. Founders can reclaim those.
+    if (!isOwner && isPlanOverrideEmail(sessionEmail)) {
+      const ownerMissing = !meta.ownerId && !meta.ownerEmail
+      const ownerGone = meta.ownerId ? !(await users.findById(meta.ownerId)) : false
+      if (ownerMissing || ownerGone) {
+        const claimed = await attachOwnerToMeta(meta, session)
+        owned.push({
+          id: claimed.id,
+          shortId: claimed.shortId,
+          fileName: claimed.fileName,
+          createdAt: claimed.createdAt,
+          publication: claimed.publication,
+          isPasswordProtected: claimed.isPasswordProtected,
+          visibility: claimed.visibility,
+        })
+        continue
+      }
+    }
+
+    if (!isOwner) continue
+
+    const attached = await attachOwnerToMeta(meta, session)
+    owned.push({
+      id: attached.id,
+      shortId: attached.shortId,
+      fileName: attached.fileName,
+      createdAt: attached.createdAt,
+      publication: attached.publication,
+      isPasswordProtected: attached.isPasswordProtected,
+      visibility: attached.visibility,
+    })
+  }
+
+  owned.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
   res.json({ flipbooks: owned })
 })
 
@@ -607,7 +670,12 @@ app.post('/api/flipbooks', upload.single('pdf'), async (req, res) => {
       pdfKey,
       pdfSizeBytes: req.file.size,
       ...(billingAccountId ? { billingAccountId } : {}),
-      ...(session ? { ownerId: session.userId } : {}),
+      ...(session
+        ? {
+            ownerId: session.userId,
+            ownerEmail: session.email.trim().toLowerCase(),
+          }
+        : {}),
       isPasswordProtected: Boolean(password),
       hasSubscriberAccess: Boolean(subscriberAccessCode),
       ...(password ? { passwordHash: await hashPassword(password) } : {}),

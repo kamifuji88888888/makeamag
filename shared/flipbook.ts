@@ -137,6 +137,8 @@ export interface FlipbookStoredMeta extends Omit<FlipbookPublicMeta, 'shortId'> 
   pdfKey: string
   billingAccountId?: string
   ownerId?: string
+  /** Stable across account recreation; used to reclaim ownership after user-store wipes. */
+  ownerEmail?: string
   pdfSizeBytes?: number
 }
 

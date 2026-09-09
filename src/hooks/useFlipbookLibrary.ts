@@ -9,6 +9,7 @@ import {
   getLibraryEntriesForFolder,
   getLibraryFolders,
   loadDraftPdf,
+  mergePublishedFlipbooks,
   moveEntryToFolder,
   type LibraryEntry,
   type LibraryFolder,
@@ -22,6 +23,7 @@ import {
   touchLibraryEntry,
   updateLibraryEntry,
 } from '../lib/libraryStorage'
+import { fetchPublishedFlipbooks } from '../lib/authApi'
 
 export function useFlipbookLibrary() {
   const [entries, setEntries] = useState<LibraryEntry[]>(() => getLibraryEntries())
@@ -157,6 +159,12 @@ export function useFlipbookLibrary() {
     [refresh],
   )
 
+  const syncFromAccount = useCallback(async () => {
+    const flipbooks = await fetchPublishedFlipbooks()
+    setEntries(mergePublishedFlipbooks(flipbooks))
+    setFolders(getLibraryFolders())
+  }, [])
+
   const createFolder = useCallback(
     (name: string) => {
       const folder = createLibraryFolder(name)
@@ -215,6 +223,7 @@ export function useFlipbookLibrary() {
     reorder,
     resetOrderByRecent,
     bumpUpdated,
+    syncFromAccount,
     createFolder,
     renameFolder,
     deleteFolder,

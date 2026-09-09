@@ -277,6 +277,62 @@ export function sortLibraryByRecent(): LibraryEntry[] {
   return getLibraryEntries()
 }
 
+/** Merge server-owned published magazines into the local library (by flipbookId). */
+export function mergePublishedFlipbooks(
+  flipbooks: Array<{
+    id: string
+    fileName: string
+    createdAt: string
+    publication?: PublicationInfo
+    isPasswordProtected: boolean
+    visibility?: FlipbookVisibility
+  }>,
+): LibraryEntry[] {
+  const data = readLibrary()
+  const byFlipbookId = new Map<string, string>()
+  for (const [entryId, entry] of Object.entries(data.entries)) {
+    if (entry.flipbookId) byFlipbookId.set(entry.flipbookId, entryId)
+  }
+
+  for (const book of flipbooks) {
+    const existingId = byFlipbookId.get(book.id)
+    if (existingId) {
+      const existing = data.entries[existingId]!
+      data.entries[existingId] = {
+        ...existing,
+        type: 'published',
+        flipbookId: book.id,
+        fileName: book.fileName,
+        isPasswordProtected: book.isPasswordProtected,
+        ...(book.visibility ? { visibility: book.visibility } : {}),
+        ...(book.publication ? { publication: book.publication } : {}),
+        updatedAt: existing.updatedAt,
+      }
+      continue
+    }
+
+    const id = crypto.randomUUID()
+    data.entries[id] = {
+      id,
+      fileName: book.fileName,
+      createdAt: book.createdAt,
+      updatedAt: book.createdAt,
+      lastOpenedAt: book.createdAt,
+      type: 'published',
+      flipbookId: book.id,
+      pageCount: 0,
+      isPasswordProtected: book.isPasswordProtected,
+      folderId: null,
+      ...(book.visibility ? { visibility: book.visibility } : {}),
+      ...(book.publication ? { publication: book.publication } : {}),
+    }
+    data.order = [id, ...data.order]
+  }
+
+  writeLibrary(data)
+  return getLibraryEntries()
+}
+
 export function createLibraryFolder(name: string): LibraryFolder {
   const trimmed = name.trim()
   if (!trimmed) {
