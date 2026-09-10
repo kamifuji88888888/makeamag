@@ -147,6 +147,7 @@ function libraryPublisherPatch(state: ReadyState) {
 export function EditorPage() {
   const [state, setState] = useState<EditorState>({ status: 'idle' })
   const [isPublishing, setIsPublishing] = useState(false)
+  const [isReplacingPdf, setIsReplacingPdf] = useState(false)
   const [showLibrary, setShowLibrary] = useState(false)
   const [libraryLoadingId, setLibraryLoadingId] = useState<string | null>(null)
   const [stripeConfigured, setStripeConfigured] = useState(false)
@@ -430,10 +431,6 @@ export function EditorPage() {
     [library, plan, showUpgrade],
   )
 
-  const handleUploadNew = useCallback(() => {
-    setState({ status: 'idle' })
-  }, [])
-
   const updateReady = useCallback(
     (updater: (prev: ReadyState) => ReadyState) => {
       setState((prev) => {
@@ -656,12 +653,18 @@ export function EditorPage() {
 
       if (!window.confirm(confirmMessage)) return
 
+      if (published && !user) {
+        alert('Sign in to replace the PDF on a published magazine. This keeps your existing share link.')
+        return
+      }
+
       plan.refreshUsage()
       if (!plan.canUploadPdf(file.size)) {
         showUpgrade('PDF too large', 'fileSize', undefined, formatByteSize(file.size))
         return
       }
 
+      setIsReplacingPdf(true)
       setState({ status: 'loading', fileName: file.name, progress: 0 })
 
       try {
@@ -679,26 +682,59 @@ export function EditorPage() {
 
         if (ready.flipbookId) {
           const meta = await replaceFlipbookPdf(ready.flipbookId, file, { planId: plan.planId })
+          const flipbookId = meta.id || ready.flipbookId
+          // Always keep the canonical storage id + existing share path.
           nextReady = {
             ...nextReady,
             fileName: meta.fileName,
-            flipbookId: meta.id,
+            flipbookId,
+            shareUrl:
+              ready.shareUrl ||
+              getShareUrl(sharePathId(meta), meta.branding || ready.branding),
           }
-          void syncShareCover(meta.id, result.images[0])
+          void syncShareCover(flipbookId, result.images[0])
         } else {
           await saveDraftPdf(ready.libraryEntryId, file)
         }
 
         const thumbnail = await createThumbnailFromDataUrl(result.images[0] ?? '')
         setState(nextReady)
-        persistLibrary(nextReady, { fileName: nextReady.fileName, thumbnail })
+        persistLibrary(nextReady, {
+          fileName: nextReady.fileName,
+          thumbnail,
+          type: nextReady.flipbookId ? 'published' : 'draft',
+          ...(nextReady.flipbookId ? { flipbookId: nextReady.flipbookId } : {}),
+        })
+
+        if (nextReady.flipbookId && nextReady.shareUrl) {
+          alert(`PDF replaced. Your share link is unchanged:\n\n${nextReady.shareUrl}`)
+        }
       } catch (error) {
+        // Never drop published editor state on failure — that forces a re-upload
+        // and Share would create a brand-new flipbook/URL.
+        setState(ready)
         const message = error instanceof Error ? error.message : 'Failed to replace PDF'
-        setState({ status: 'error', message })
+        alert(
+          published
+            ? `Could not replace PDF (share link unchanged).\n\n${message}`
+            : message,
+        )
+      } finally {
+        setIsReplacingPdf(false)
       }
     },
-    [applyPdfToReady, persistLibrary, plan, showUpgrade, state],
+    [applyPdfToReady, persistLibrary, plan, showUpgrade, state, user],
   )
+
+  const handleUploadNew = useCallback(() => {
+    if (state.status === 'ready' && state.flipbookId) {
+      const ok = window.confirm(
+        'Start a new magazine?\n\nThis does not replace the one you have open. To keep the same share link, use Publisher → Details → Replace PDF instead.',
+      )
+      if (!ok) return
+    }
+    setState({ status: 'idle' })
+  }, [state])
 
   const handleRefreshPages = useCallback(async () => {
     if (state.status !== 'ready') return
@@ -1105,6 +1141,7 @@ export function EditorPage() {
               onImportOutline={handleImportOutline}
               onReplacePdf={handleReplacePdf}
               onRefreshPages={handleRefreshPages}
+              pdfActionBusy={isReplacingPdf || isPublishing}
               onPasswordChange={handlePasswordChange}
               onVisibilityChange={handleVisibilityChange}
               canPasswordProtect={plan.can('passwordProtection')}

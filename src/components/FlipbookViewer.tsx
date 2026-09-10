@@ -868,6 +868,7 @@ export function FlipbookViewer({
               soundEnabled={soundEnabled}
               mode={mode}
               isPublishing={isPublishing}
+              flipbookId={flipbookId}
               positionMode={inlinePositionMode}
               hasContents={hasContents}
               zoom={zoom}

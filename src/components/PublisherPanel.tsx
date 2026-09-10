@@ -427,8 +427,8 @@ export function PublisherPanel({
                   </div>
                   <p className="mt-2 text-xs leading-relaxed text-apple-muted">
                     {flipbookId
-                      ? 'Replacing the PDF keeps your share link. Review hotspots and videos if the page count changes.'
-                      : 'Refresh pages re-renders from your current PDF — useful after viewer updates.'}
+                      ? 'Replace PDF updates this magazine in place — your share link stays the same. Review hotspots and videos if the page count changes. Do not use “Upload another” if you want to keep the link.'
+                      : 'Publish first to get a share link. After that, Replace PDF keeps the same URL.'}
                   </p>
                 </div>
               )}

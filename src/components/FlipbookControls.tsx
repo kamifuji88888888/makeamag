@@ -7,6 +7,7 @@ interface FlipbookControlsProps {
   soundEnabled: boolean
   mode: 'editor' | 'shared' | 'embed'
   isPublishing?: boolean
+  flipbookId?: string | null
   positionMode?: boolean
   zoom?: number
   minZoom?: number
@@ -36,6 +37,7 @@ export function FlipbookControls({
   soundEnabled,
   mode,
   isPublishing,
+  flipbookId = null,
   positionMode,
   zoom,
   minZoom = 1,
@@ -203,7 +205,13 @@ export function FlipbookControls({
           disabled={isPublishing || positionMode}
           className="apple-btn-primary ml-1"
         >
-          {isPublishing ? 'Publishing…' : 'Share'}
+          {isPublishing
+            ? flipbookId
+              ? 'Updating…'
+              : 'Publishing…'
+            : flipbookId
+              ? 'Update'
+              : 'Share'}
         </button>
       )}
 
