@@ -1,6 +1,24 @@
 import type { VideoEmbed, VideoProvider, VideoSizePreset } from '../../shared/flipbook'
 import { VIDEO_SIZE_PRESETS } from '../../shared/flipbook'
 
+/** Extract a Vimeo video id from common share, embed, and dashboard URLs. */
+export function extractVimeoId(rawUrl: string): string | null {
+  try {
+    const parsed = new URL(rawUrl.trim())
+    const host = parsed.hostname.replace(/^www\./, '')
+    if (host !== 'vimeo.com' && host !== 'player.vimeo.com') return null
+
+    // player.vimeo.com/video/123, vimeo.com/123, vimeo.com/manage/videos/123,
+    // vimeo.com/video/123, vimeo.com/channels/x/123, vimeo.com/groups/x/videos/123
+    const match = parsed.pathname.match(
+      /(?:\/(?:manage\/)?videos?|\/channels\/[^/]+|\/groups\/[^/]+\/videos)?\/(\d+)(?:\/|$)/,
+    )
+    return match?.[1] ?? null
+  } catch {
+    return null
+  }
+}
+
 export function parseVideoUrl(rawUrl: string): {
   provider: VideoProvider
   embedUrl: string
@@ -23,11 +41,11 @@ export function parseVideoUrl(rawUrl: string): {
     }
   }
 
-  const vimeoMatch = url.match(/vimeo\.com\/(?:video\/)?(\d+)/)
-  if (vimeoMatch?.[1]) {
+  const vimeoId = extractVimeoId(url)
+  if (vimeoId) {
     return {
       provider: 'vimeo',
-      embedUrl: `https://player.vimeo.com/video/${vimeoMatch[1]}`,
+      embedUrl: `https://player.vimeo.com/video/${vimeoId}`,
     }
   }
 
@@ -45,6 +63,29 @@ export function parseVideoUrl(rawUrl: string): {
   }
 
   return null
+}
+
+/** Heal embeds saved before manage/dashboard Vimeo URLs were supported. */
+export function resolveVideoEmbed(embed: VideoEmbed): VideoEmbed {
+  const fromSource = parseVideoUrl(embed.url)
+  if (fromSource?.provider === 'vimeo') {
+    return {
+      ...embed,
+      provider: 'vimeo',
+      embedUrl: fromSource.embedUrl,
+    }
+  }
+
+  const fromEmbed = extractVimeoId(embed.embedUrl)
+  if (fromEmbed) {
+    return {
+      ...embed,
+      provider: 'vimeo',
+      embedUrl: `https://player.vimeo.com/video/${fromEmbed}`,
+    }
+  }
+
+  return embed
 }
 
 export function createVideoEmbed(

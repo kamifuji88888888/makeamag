@@ -1,4 +1,5 @@
 import type { VideoEmbed } from '../../shared/flipbook'
+import { resolveVideoEmbed } from '../lib/videoUtils'
 import { VideoDragOverlay } from './VideoDragOverlay'
 
 interface VideoOverlayProps {
@@ -20,10 +21,12 @@ function VideoContent({
   interactive: boolean
   onPlay?: () => void
 }) {
-  if (embed.provider === 'direct') {
+  const resolved = resolveVideoEmbed(embed)
+
+  if (resolved.provider === 'direct') {
     return (
       <video
-        src={embed.embedUrl}
+        src={resolved.embedUrl}
         controls={interactive}
         className="h-full w-full bg-black object-cover"
         playsInline
@@ -34,11 +37,12 @@ function VideoContent({
 
   return (
     <iframe
-      src={embed.embedUrl}
-      title={`Video on page ${embed.pageIndex + 1}`}
+      src={resolved.embedUrl}
+      title={`Video on page ${resolved.pageIndex + 1}`}
       className="h-full w-full bg-black"
-      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
       allowFullScreen
+      referrerPolicy="strict-origin-when-cross-origin"
       style={{ pointerEvents: interactive ? 'auto' : 'none' }}
     />
   )

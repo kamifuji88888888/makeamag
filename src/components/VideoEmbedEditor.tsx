@@ -75,9 +75,12 @@ export function VideoEmbedEditor({
               type="url"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              placeholder="https://youtube.com/watch?v=..."
+              placeholder="https://vimeo.com/123456789 or YouTube URL"
               className="apple-input"
             />
+            <p className="mt-2 text-xs text-apple-muted">
+              Vimeo share, player, or manage links work. Private Vimeo videos must allow embedding.
+            </p>
           </div>
 
           <div>
