@@ -317,9 +317,15 @@ export function FlipbookViewer({
   const [showShareDialog, setShowShareDialog] = useState(false)
   const [showSocialShareDialog, setShowSocialShareDialog] = useState(false)
   const [pendingPassword, setPendingPassword] = useState<string | undefined>()
+  const [layoutSpread, setLayoutSpread] = useState(spreadView)
   const wasPublishing = useRef(false)
   const initialPageApplied = useRef(false)
   const { play, unlock } = usePageTurnSound(soundEnabled)
+
+  useEffect(() => {
+    setLayoutSpread(spreadView)
+  }, [spreadView])
+
   const isShared = mode === 'shared'
   const isEmbed = mode === 'embed'
   const normalizedLeadCapture = normalizeLeadCapture(leadCapture)
@@ -355,13 +361,13 @@ export function FlipbookViewer({
     [onPageTextsChange],
   )
   const isCoverOrBack =
-    spreadView && totalPages > 0 && (currentPage === 1 || currentPage === totalPages)
-  const usePortraitLayout = !spreadView || isCoverOrBack
+    layoutSpread && totalPages > 0 && (currentPage === 1 || currentPage === totalPages)
+  const usePortraitLayout = !layoutSpread || isCoverOrBack
   const { width, height, viewportWidth, viewportHeight } = useFlipbookDimensions(
     stageRef,
     aspectRatio,
     mode,
-    spreadView,
+    layoutSpread,
     usePortraitLayout,
   )
   const bookWidth = usePortraitLayout ? width : width * 2
@@ -376,11 +382,20 @@ export function FlipbookViewer({
     viewportStyle,
     viewportHandlers,
   } = useFlipbookZoom(bookWidth, height, viewportWidth, viewportHeight)
-  const layoutMode = !spreadView ? 'single' : isCoverOrBack ? 'cover' : 'spread'
+  const layoutMode = !layoutSpread ? 'single' : isCoverOrBack ? 'cover' : 'spread'
   const bookKey = `${layoutMode}-${width}-${height}-${totalPages}`
   const { trackPageView, trackLinkClick, trackVideoPlay, trackPaywallImpression, trackPaywallClick, trackLeadCaptureImpression, trackLeadCaptureSubmit } =
     useFlipbookAnalytics(flipbookId, mode)
   const publicPathId = sharePathId || flipbookId
+
+  const handleLayoutChange = useCallback(
+    (next: boolean) => {
+      setLayoutSpread(next)
+      resetZoom()
+      onSpreadViewChange?.(next)
+    },
+    [onSpreadViewChange, resetZoom],
+  )
 
   const openPaywall = useCallback(() => {
     setShowPaywall(true)
@@ -668,7 +683,7 @@ export function FlipbookViewer({
           src={src}
           pageNumber={index + 1}
           pageIndex={index}
-          spreadSpine={spreadSpineForPage(index, totalPages, spreadView)}
+          spreadSpine={spreadSpineForPage(index, totalPages, layoutSpread)}
           videoEmbeds={videoEmbeds}
           linkHotspots={linkHotspots}
           popUpPanels={popUpPanels}
@@ -695,7 +710,7 @@ export function FlipbookViewer({
     [
       visibleImages,
       totalPages,
-      spreadView,
+      layoutSpread,
       videoEmbeds,
       linkHotspots,
       popUpPanels,
@@ -776,7 +791,7 @@ export function FlipbookViewer({
             <div
               className={[
                 'apple-flipbook-frame relative overflow-hidden',
-                spreadView && !usePortraitLayout ? 'apple-flipbook-frame--spread' : '',
+                layoutSpread && !usePortraitLayout ? 'apple-flipbook-frame--spread' : '',
                 inlinePositionMode ? 'ring-2 ring-apple-blue/30' : '',
                 isZoomed ? 'pointer-events-none' : '',
               ].join(' ')}
@@ -800,7 +815,7 @@ export function FlipbookViewer({
                 startZIndex={0}
                 autoSize={false}
                 maxShadowOpacity={0.5}
-                showCover={spreadView && !isCoverOrBack}
+                showCover={layoutSpread && !isCoverOrBack}
                 mobileScrollSupport={!isZoomed}
                 swipeDistance={isZoomed ? 9999 : 30}
                 clickEventForward={!inlinePositionMode && !isZoomed}
@@ -826,40 +841,6 @@ export function FlipbookViewer({
                 {!isZoomed && linkHotspots.length > 0 && !inlinePositionMode && ' · Tap links to open'}
                 {!isZoomed && popUpPanels.length > 0 && !inlinePositionMode && ' · Tap + buttons for footnotes & specs'}
               </p>
-              {onSpreadViewChange && (
-                <div
-                  className="inline-flex shrink-0 rounded-full border border-apple-border-light bg-apple-gray p-0.5"
-                  role="group"
-                  aria-label="Page layout"
-                >
-                  <button
-                    type="button"
-                    onClick={() => onSpreadViewChange(false)}
-                    aria-pressed={!spreadView}
-                    className={[
-                      'rounded-full px-2.5 py-0.5 text-xs font-medium transition',
-                      !spreadView
-                        ? 'bg-white text-apple-text shadow-sm'
-                        : 'text-apple-muted hover:text-apple-text',
-                    ].join(' ')}
-                  >
-                    Page
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onSpreadViewChange(true)}
-                    aria-pressed={spreadView}
-                    className={[
-                      'rounded-full px-2.5 py-0.5 text-xs font-medium transition',
-                      spreadView
-                        ? 'bg-white text-apple-text shadow-sm'
-                        : 'text-apple-muted hover:text-apple-text',
-                    ].join(' ')}
-                  >
-                    Spread
-                  </button>
-                </div>
-              )}
             </div>
 
             <FlipbookControls
@@ -870,6 +851,8 @@ export function FlipbookViewer({
               isPublishing={isPublishing}
               flipbookId={flipbookId}
               positionMode={inlinePositionMode}
+              spreadView={layoutSpread}
+              onSpreadViewChange={hideChrome ? undefined : handleLayoutChange}
               hasContents={hasContents}
               zoom={zoom}
               minZoom={minZoom}

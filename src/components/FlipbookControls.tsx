@@ -9,6 +9,8 @@ interface FlipbookControlsProps {
   isPublishing?: boolean
   flipbookId?: string | null
   positionMode?: boolean
+  spreadView?: boolean
+  onSpreadViewChange?: (spreadView: boolean) => void
   zoom?: number
   minZoom?: number
   maxZoom?: number
@@ -39,6 +41,8 @@ export function FlipbookControls({
   isPublishing,
   flipbookId = null,
   positionMode,
+  spreadView = false,
+  onSpreadViewChange,
   zoom,
   minZoom = 1,
   maxZoom = 4,
@@ -81,6 +85,46 @@ export function FlipbookControls({
           <button type="button" onClick={onUploadNew} className="apple-btn-ghost mr-1">
             New PDF
           </button>
+          <div className="mx-1 h-5 w-px bg-apple-border-light" />
+        </>
+      )}
+
+      {onSpreadViewChange && (
+        <>
+          <div
+            className="inline-flex shrink-0 rounded-full border border-apple-border-light bg-apple-gray p-0.5"
+            role="group"
+            aria-label="Page layout"
+          >
+            <button
+              type="button"
+              onClick={() => onSpreadViewChange(false)}
+              aria-pressed={!spreadView}
+              disabled={Boolean(positionMode)}
+              className={[
+                'rounded-full px-2.5 py-1 text-xs font-medium transition disabled:opacity-40',
+                !spreadView
+                  ? 'bg-white text-apple-text shadow-sm'
+                  : 'text-apple-muted hover:text-apple-text',
+              ].join(' ')}
+            >
+              Page
+            </button>
+            <button
+              type="button"
+              onClick={() => onSpreadViewChange(true)}
+              aria-pressed={spreadView}
+              disabled={Boolean(positionMode)}
+              className={[
+                'rounded-full px-2.5 py-1 text-xs font-medium transition disabled:opacity-40',
+                spreadView
+                  ? 'bg-white text-apple-text shadow-sm'
+                  : 'text-apple-muted hover:text-apple-text',
+              ].join(' ')}
+            >
+              Spread
+            </button>
+          </div>
           <div className="mx-1 h-5 w-px bg-apple-border-light" />
         </>
       )}
