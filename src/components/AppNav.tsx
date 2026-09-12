@@ -53,6 +53,9 @@ export function AppNav({ maxWidthClass = 'max-w-[980px]', children }: AppNavProp
           <Link to="/pricing" className="apple-btn-ghost">
             Pricing
           </Link>
+          <Link to="/faq" className="apple-btn-ghost hidden sm:inline-flex">
+            FAQ
+          </Link>
 
           <span
             className={[

@@ -7,6 +7,7 @@ import { AuthPage } from './pages/AuthPage'
 import { EditorPage } from './pages/EditorPage'
 import { EmbedPage } from './pages/EmbedPage'
 import { FlipbookViewScreen } from './pages/FlipbookViewScreen'
+import { FaqPage } from './pages/FaqPage'
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { PricingPage } from './pages/PricingPage'
 import { AccessibilityPage } from './pages/AccessibilityPage'
@@ -55,6 +56,7 @@ function App() {
             <Route path="/guidelines" element={<ContentGuidelinesPage />} />
             <Route path="/accessibility" element={<AccessibilityPage />} />
             <Route path="/pricing" element={<PricingPage />} />
+            <Route path="/faq" element={<FaqPage />} />
             <Route path="/admin" element={<AdminPage />} />
             <Route path="/view/:id" element={<ViewPage />} />
             <Route path="/embed/:id" element={<EmbedPage />} />
