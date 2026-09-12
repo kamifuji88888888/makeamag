@@ -997,6 +997,30 @@ app.patch('/api/flipbooks/:id', async (req, res) => {
   res.json(toPublicMeta(meta))
 })
 
+app.delete('/api/flipbooks/:id', async (req, res) => {
+  try {
+    const meta = await resolveFlipbookMeta(req.params.id)
+    if (!meta) {
+      res.status(404).json({ error: 'Flipbook not found' })
+      return
+    }
+
+    const session = readSessionFromRequest(req)
+    if (!canEditFlipbook(meta, session)) {
+      res.status(403).json({ error: 'You do not have permission to delete this flipbook' })
+      return
+    }
+
+    await domains.clear(meta.id)
+    await shortIds.unassignForFlipbook(meta.id)
+    await storage.deleteFlipbook(meta.id)
+    res.status(204).end()
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to delete flipbook'
+    res.status(500).json({ error: message })
+  }
+})
+
 app.get('/api/admin/metrics', async (req, res) => {
   const session = readSessionFromRequest(req)
   if (!isAdminAuthorized(req.headers.authorization, process.env.ADMIN_SECRET, session?.email)) {

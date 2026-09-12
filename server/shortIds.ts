@@ -53,5 +53,19 @@ export function createShortIdRegistry(dataDir: string) {
       const registry = await readRegistry()
       return Boolean(registry.byShortId[id])
     },
+
+    async unassignForFlipbook(flipbookId: string): Promise<void> {
+      const registry = await readRegistry()
+      let changed = false
+      for (const [existingShort, storageId] of Object.entries(registry.byShortId)) {
+        if (storageId === flipbookId) {
+          delete registry.byShortId[existingShort]
+          changed = true
+        }
+      }
+      if (changed) {
+        await writeRegistry(registry)
+      }
+    },
   }
 }

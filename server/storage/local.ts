@@ -89,6 +89,19 @@ export function createLocalStorage(dataDir: string): StorageProvider {
       return metas
     },
 
+    async deleteFlipbook(id) {
+      await ensureDirs()
+      const meta = await this.readMeta(id)
+      await fs.rm(path.join(metaDir, `${id}.json`), { force: true })
+      if (meta?.pdfKey) {
+        await fs.rm(path.join(pdfDir, meta.pdfKey), { force: true })
+      } else {
+        await fs.rm(path.join(pdfDir, `${id}.pdf`), { force: true })
+      }
+      await this.deleteLogo(id)
+      await this.deleteCover(id)
+    },
+
     async saveLogo(id, buffer, contentType) {
       await ensureDirs()
       await fs.writeFile(logoPath(id), buffer)

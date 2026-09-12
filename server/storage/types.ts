@@ -12,6 +12,7 @@ export interface StorageProvider {
   saveMeta(meta: FlipbookStoredMeta): Promise<void>
   readMeta(id: string): Promise<FlipbookStoredMeta | null>
   listAllMeta(): Promise<FlipbookStoredMeta[]>
+  deleteFlipbook(id: string): Promise<void>
   saveLogo(id: string, buffer: Buffer, contentType: string): Promise<string>
   readLogo(id: string): Promise<LogoAsset | null>
   deleteLogo(id: string): Promise<void>

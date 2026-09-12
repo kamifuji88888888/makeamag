@@ -11,6 +11,7 @@ import type {
 } from '../../shared/flipbook'
 
 const LIBRARY_KEY = 'makeamag_library'
+const DISMISSED_FLIPBOOKS_KEY = 'makeamag_dismissed_flipbooks'
 const DB_NAME = 'makeamag_drafts'
 const DB_VERSION = 1
 const PDF_STORE = 'pdfs'
@@ -265,6 +266,39 @@ export function removeLibraryEntry(id: string): void {
   writeLibrary(data)
 }
 
+function readDismissedFlipbookIds(): Set<string> {
+  try {
+    const raw = localStorage.getItem(DISMISSED_FLIPBOOKS_KEY)
+    if (!raw) return new Set()
+    const parsed = JSON.parse(raw) as unknown
+    if (!Array.isArray(parsed)) return new Set()
+    return new Set(parsed.filter((id): id is string => typeof id === 'string' && id.length > 0))
+  } catch {
+    return new Set()
+  }
+}
+
+function writeDismissedFlipbookIds(ids: Set<string>) {
+  localStorage.setItem(DISMISSED_FLIPBOOKS_KEY, JSON.stringify([...ids]))
+}
+
+/** Keep account sync from re-adding a magazine the user removed from My flipbooks. */
+export function dismissPublishedFlipbook(flipbookId: string): void {
+  const id = flipbookId.trim()
+  if (!id) return
+  const dismissed = readDismissedFlipbookIds()
+  dismissed.add(id)
+  writeDismissedFlipbookIds(dismissed)
+}
+
+export function undismissPublishedFlipbook(flipbookId: string): void {
+  const id = flipbookId.trim()
+  if (!id) return
+  const dismissed = readDismissedFlipbookIds()
+  if (!dismissed.delete(id)) return
+  writeDismissedFlipbookIds(dismissed)
+}
+
 export function sortLibraryByRecent(): LibraryEntry[] {
   const data = readLibrary()
   data.order.sort((a, b) => {
@@ -289,12 +323,15 @@ export function mergePublishedFlipbooks(
   }>,
 ): LibraryEntry[] {
   const data = readLibrary()
+  const dismissed = readDismissedFlipbookIds()
   const byFlipbookId = new Map<string, string>()
   for (const [entryId, entry] of Object.entries(data.entries)) {
     if (entry.flipbookId) byFlipbookId.set(entry.flipbookId, entryId)
   }
 
   for (const book of flipbooks) {
+    if (dismissed.has(book.id)) continue
+
     const existingId = byFlipbookId.get(book.id)
     if (existingId) {
       const existing = data.entries[existingId]!

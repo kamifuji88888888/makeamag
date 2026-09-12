@@ -359,14 +359,14 @@ export function FlipbookLibrary({
                   </select>
                 )}
 
-                <button
-                  type="button"
-                  onClick={() => onRemove(entry.id)}
-                  aria-label={`Remove ${entry.fileName}`}
-                  className="apple-btn-ghost shrink-0 text-apple-muted hover:text-red-500"
-                >
-                  Remove
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => onRemove(entry.id)}
+                    aria-label={`Remove ${entry.fileName}`}
+                    className="apple-btn-ghost shrink-0 text-apple-muted hover:text-red-500"
+                  >
+                    {entry.type === 'published' ? 'Delete' : 'Remove'}
+                  </button>
               </li>
             )
           })}

@@ -44,6 +44,17 @@ const FAQS: FaqItem[] = [
     ),
   },
   {
+    id: 'delete-magazine',
+    question: 'How do I permanently delete a magazine from My flipbooks?',
+    answer: (
+      <p>
+        Open <strong>My flipbooks</strong>, then tap <strong>Delete</strong> on the magazine. Confirm
+        to remove it from your list and delete the published file — the share link will stop working.
+        Drafts use <strong>Remove</strong> and only clear the local draft.
+      </p>
+    ),
+  },
+  {
     id: 'remove-video',
     question: 'How do I remove a video from a page?',
     answer: (

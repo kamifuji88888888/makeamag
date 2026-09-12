@@ -1,4 +1,5 @@
 import {
+  DeleteObjectCommand,
   GetObjectCommand,
   ListObjectsV2Command,
   PutObjectCommand,
@@ -155,6 +156,31 @@ export function createS3Storage(): StorageProvider {
       } while (continuationToken)
 
       return metas
+    },
+
+    async deleteFlipbook(id) {
+      const meta = await this.readMeta(id)
+      const keys = [
+        metaKey(id),
+        meta?.pdfKey || pdfKey(id),
+        logoKey(id),
+        logoMetaSidecar(id),
+        coverKey(id),
+        coverMetaSidecar(id),
+      ]
+
+      for (const key of keys) {
+        try {
+          await client.send(
+            new DeleteObjectCommand({
+              Bucket: bucket,
+              Key: key,
+            }),
+          )
+        } catch {
+          // Best-effort cleanup; missing objects are fine.
+        }
+      }
     },
 
     async saveLogo(id, buffer, contentType) {

@@ -5,6 +5,7 @@ import {
   countEntriesForFolder,
   createLibraryFolder,
   deleteDraftPdf,
+  dismissPublishedFlipbook,
   getLibraryEntries,
   getLibraryEntriesForFolder,
   getLibraryFolders,
@@ -21,8 +22,10 @@ import {
   saveDraftPdf,
   sortLibraryByRecent,
   touchLibraryEntry,
+  undismissPublishedFlipbook,
   updateLibraryEntry,
 } from '../lib/libraryStorage'
+import { deleteFlipbook } from '../lib/api'
 import { fetchPublishedFlipbooks } from '../lib/authApi'
 
 export function useFlipbookLibrary() {
@@ -113,6 +116,7 @@ export function useFlipbookLibrary() {
         ...(flipbook.branding ? { branding: flipbook.branding } : {}),
         ...(flipbook.thumbnail ? { thumbnail: flipbook.thumbnail } : {}),
       })
+      undismissPublishedFlipbook(flipbook.id)
       void deleteDraftPdf(libraryEntryId)
       refresh()
     },
@@ -133,9 +137,31 @@ export function useFlipbookLibrary() {
 
   const remove = useCallback(async (id: string) => {
     const entry = getLibraryEntries().find((e) => e.id === id)
-    if (entry?.type === 'draft') {
+    if (!entry) return
+
+    if (entry.type === 'published' && entry.flipbookId) {
+      const ok = window.confirm(
+        `Delete “${entry.fileName}” permanently?\n\nThis removes it from My flipbooks and deletes the published magazine. The share link will stop working.`,
+      )
+      if (!ok) return
+
+      try {
+        await deleteFlipbook(entry.flipbookId)
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to delete magazine'
+        // Still hide locally if the server copy is already gone.
+        if (!/not found/i.test(message)) {
+          alert(message)
+          return
+        }
+      }
+      dismissPublishedFlipbook(entry.flipbookId)
+    } else if (entry.type === 'draft') {
+      const ok = window.confirm(`Remove draft “${entry.fileName}” from My flipbooks?`)
+      if (!ok) return
       await deleteDraftPdf(id)
     }
+
     removeLibraryEntry(id)
     refresh()
   }, [refresh])

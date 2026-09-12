@@ -211,6 +211,18 @@ export async function replaceFlipbookPdf(
   return response.json() as Promise<FlipbookPublicMeta>
 }
 
+export async function deleteFlipbook(id: string): Promise<void> {
+  const response = await fetch(`${API_BASE}/flipbooks/${id}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  })
+
+  if (!response.ok) {
+    const body = (await response.json().catch(() => ({}))) as { error?: string }
+    throw new Error(body.error ?? 'Failed to delete flipbook')
+  }
+}
+
 export async function updateFlipbook(
   id: string,
   updates: {
