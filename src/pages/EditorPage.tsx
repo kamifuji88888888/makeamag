@@ -1141,7 +1141,7 @@ export function EditorPage() {
               onImportOutline={handleImportOutline}
               onReplacePdf={handleReplacePdf}
               onRefreshPages={handleRefreshPages}
-              pdfActionBusy={isReplacingPdf || isPublishing}
+              pdfActionBusy={isReplacingPdf}
               onPasswordChange={handlePasswordChange}
               onVisibilityChange={handleVisibilityChange}
               canPasswordProtect={plan.can('passwordProtection')}

@@ -408,9 +408,9 @@ export function PublisherPanel({
                           type="button"
                           disabled={pdfActionBusy}
                           onClick={() => replacePdfInputRef.current?.click()}
-                          className="apple-btn-secondary text-sm disabled:cursor-not-allowed disabled:opacity-50"
+                          className="apple-btn-primary text-sm disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                          Replace PDF
+                          {pdfActionBusy ? 'Replacing…' : 'Replace PDF'}
                         </button>
                       </>
                     )}
@@ -419,7 +419,7 @@ export function PublisherPanel({
                         type="button"
                         disabled={pdfActionBusy}
                         onClick={() => void onRefreshPages()}
-                        className="apple-btn-ghost text-sm disabled:cursor-not-allowed disabled:opacity-50"
+                        className="apple-btn-secondary text-sm disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         Refresh pages
                       </button>

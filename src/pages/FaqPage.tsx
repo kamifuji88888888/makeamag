@@ -23,11 +23,13 @@ const FAQS: FaqItem[] = [
           <li>Open your magazine from My flipbooks</li>
           <li>Tap <strong>Publisher</strong> in the bottom control bar</li>
           <li>Open the <strong>Details</strong> tab</li>
-          <li>Under <strong>Source PDF</strong>, tap <strong>Replace PDF</strong></li>
+          <li>Under <strong>Source PDF</strong>, tap the blue <strong>Replace PDF</strong> button</li>
         </ol>
         <p className="mt-3">
           This updates the magazine in place and <strong>keeps the same share link</strong>. Do not
-          use New PDF or Upload another if you want to keep your URL.
+          use New PDF or Upload another if you want to keep your URL. The button only shows
+          “Replacing…” while a replace is in progress — if Update is running, you can still choose
+          Replace PDF.
         </p>
       </>
     ),
