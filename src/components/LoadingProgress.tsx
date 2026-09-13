@@ -1,9 +1,14 @@
 interface LoadingProgressProps {
   progress: number
   fileName: string
+  statusLabel?: string
 }
 
-export function LoadingProgress({ progress, fileName }: LoadingProgressProps) {
+export function LoadingProgress({
+  progress,
+  fileName,
+  statusLabel = 'Rendering pages…',
+}: LoadingProgressProps) {
   const percent = Math.round(progress * 100)
 
   return (
@@ -19,7 +24,7 @@ export function LoadingProgress({ progress, fileName }: LoadingProgressProps) {
       <div className="apple-progress-track">
         <div className="apple-progress-fill" style={{ width: `${percent}%` }} />
       </div>
-      <p className="mt-4 text-sm text-apple-muted">Rendering pages…</p>
+      <p className="mt-4 text-sm text-apple-muted">{statusLabel}</p>
     </div>
   )
 }

@@ -197,11 +197,22 @@ export async function replaceFlipbookPdf(
     formData.append('planId', options.planId)
   }
 
-  const response = await fetch(`${API_BASE}/flipbooks/${id}/pdf`, {
-    method: 'POST',
-    credentials: 'include',
-    body: formData,
-  })
+  let response: Response
+  try {
+    response = await fetch(`${API_BASE}/flipbooks/${id}/pdf`, {
+      method: 'POST',
+      credentials: 'include',
+      body: formData,
+    })
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : 'Network error'
+    if (/load failed|failed to fetch|networkerror|abort/i.test(detail)) {
+      throw new Error(
+        'Upload failed — the connection dropped while sending the PDF. Large magazines can take a few minutes; try again on a stable network.',
+      )
+    }
+    throw new Error(`Upload failed: ${detail}`)
+  }
 
   if (!response.ok) {
     const body = (await response.json().catch(() => ({}))) as { error?: string }

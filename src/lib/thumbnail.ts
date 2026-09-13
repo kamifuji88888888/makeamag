@@ -28,6 +28,19 @@ function resizeDataUrl(dataUrl: string, maxWidth: number, quality: number): Prom
 }
 
 export async function dataUrlToBlob(dataUrl: string): Promise<Blob> {
-  const response = await fetch(dataUrl)
-  return response.blob()
+  // Avoid fetch(dataUrl) — Safari often throws "Load failed" on large data URLs.
+  const comma = dataUrl.indexOf(',')
+  if (comma < 0) {
+    throw new Error('Invalid image data')
+  }
+  const header = dataUrl.slice(0, comma)
+  const payload = dataUrl.slice(comma + 1)
+  const mimeMatch = /data:([^;]+)/.exec(header)
+  const mime = mimeMatch?.[1] ?? 'image/jpeg'
+  const binary = atob(payload)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i)
+  }
+  return new Blob([bytes], { type: mime })
 }

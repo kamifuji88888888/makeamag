@@ -96,7 +96,7 @@ type ReadyState = {
 
 type EditorState =
   | { status: 'idle' }
-  | { status: 'loading'; fileName: string; progress: number }
+  | { status: 'loading'; fileName: string; progress: number; statusLabel?: string }
   | ReadyState
   | { status: 'error'; message: string }
 
@@ -665,45 +665,90 @@ export function EditorPage() {
       }
 
       setIsReplacingPdf(true)
-      setState({ status: 'loading', fileName: file.name, progress: 0 })
+      setState({
+        status: 'loading',
+        fileName: file.name,
+        progress: 0.02,
+        statusLabel: ready.flipbookId ? 'Uploading PDF…' : 'Preparing PDF…',
+      })
+
+      let uploadedToShare = false
+      let nextFlipbookId = ready.flipbookId
+      let nextShareUrl = ready.shareUrl
+      let nextFileName = file.name
 
       try {
-        const result = await renderPdfToImages(file, (progress) => {
-          setState({ status: 'loading', fileName: file.name, progress })
-        })
+        // Upload first so the live share link gets the new PDF even if local
+        // rendering of a large magazine later fails or runs out of memory.
+        if (ready.flipbookId) {
+          const meta = await replaceFlipbookPdf(ready.flipbookId, file, { planId: plan.planId })
+          nextFlipbookId = meta.id || ready.flipbookId
+          nextFileName = meta.fileName
+          nextShareUrl =
+            ready.shareUrl || getShareUrl(sharePathId(meta), meta.branding || ready.branding)
+          uploadedToShare = true
+          setState({
+            status: 'loading',
+            fileName: nextFileName,
+            progress: 0.08,
+            statusLabel: 'Rendering pages…',
+          })
+        }
+
+        const largePdf = file.size > 40 * 1024 * 1024
+        const result = await renderPdfToImages(
+          file,
+          (progress) => {
+            setState({
+              status: 'loading',
+              fileName: nextFileName,
+              // Keep a little headroom so upload phase is visible for published replaces.
+              progress: ready.flipbookId ? 0.08 + progress * 0.92 : progress,
+              statusLabel: 'Rendering pages…',
+            })
+          },
+          largePdf ? { maxRenderWidth: 1100, jpegQuality: 0.82 } : undefined,
+        )
 
         if (!plan.canAddPages(result.pageCount)) {
-          setState(ready)
+          // Share already has the new PDF if we uploaded first; keep ids so Share stays Update.
+          setState({
+            ...ready,
+            fileName: nextFileName,
+            flipbookId: nextFlipbookId,
+            shareUrl: nextShareUrl,
+          })
           showUpgrade('PDF too long', 'pages', undefined, String(result.pageCount))
           return
         }
 
         let nextReady = applyPdfToReady(ready, file, result)
+        nextReady = {
+          ...nextReady,
+          fileName: nextFileName,
+          flipbookId: nextFlipbookId,
+          shareUrl: nextShareUrl,
+        }
 
-        if (ready.flipbookId) {
-          const meta = await replaceFlipbookPdf(ready.flipbookId, file, { planId: plan.planId })
-          const flipbookId = meta.id || ready.flipbookId
-          // Always keep the canonical storage id + existing share path.
-          nextReady = {
-            ...nextReady,
-            fileName: meta.fileName,
-            flipbookId,
-            shareUrl:
-              ready.shareUrl ||
-              getShareUrl(sharePathId(meta), meta.branding || ready.branding),
-          }
-          void syncShareCover(flipbookId, result.images[0])
+        if (nextFlipbookId) {
+          void syncShareCover(nextFlipbookId, result.images[0])
         } else {
           await saveDraftPdf(ready.libraryEntryId, file)
         }
 
-        const thumbnail = await createThumbnailFromDataUrl(result.images[0] ?? '')
+        let thumbnail: string | undefined
+        try {
+          thumbnail = await createThumbnailFromDataUrl(result.images[0] ?? '')
+        } catch {
+          // Thumbnail is optional — don't fail a successful replace over it.
+        }
+
         setState(nextReady)
         persistLibrary(nextReady, {
           fileName: nextReady.fileName,
-          thumbnail,
+          ...(thumbnail ? { thumbnail } : {}),
           type: nextReady.flipbookId ? 'published' : 'draft',
-          ...(nextReady.flipbookId ? { flipbookId: nextReady.flipbookId } : {}),
+          ...(nextReady.flipbookId ? { flipbookId: nextFlipbookId } : {}),
         })
 
         if (nextReady.flipbookId && nextReady.shareUrl) {
@@ -712,13 +757,25 @@ export function EditorPage() {
       } catch (error) {
         // Never drop published editor state on failure — that forces a re-upload
         // and Share would create a brand-new flipbook/URL.
-        setState(ready)
         const message = error instanceof Error ? error.message : 'Failed to replace PDF'
-        alert(
-          published
-            ? `Could not replace PDF (share link unchanged).\n\n${message}`
-            : message,
-        )
+        if (uploadedToShare) {
+          setState({
+            ...ready,
+            fileName: nextFileName,
+            flipbookId: nextFlipbookId,
+            shareUrl: nextShareUrl,
+          })
+          alert(
+            `PDF uploaded to your share link, but the editor preview failed.\n\n${message}\n\nReload this magazine from My Flipbooks to refresh the preview. Your share link is unchanged.`,
+          )
+        } else {
+          setState(ready)
+          alert(
+            published
+              ? `Could not replace PDF (share link unchanged).\n\n${message}`
+              : message,
+          )
+        }
       } finally {
         setIsReplacingPdf(false)
       }
@@ -1055,7 +1112,11 @@ export function EditorPage() {
 
         {state.status === 'loading' && (
           <div className="flex min-h-[60vh] items-center justify-center px-6 py-20">
-            <LoadingProgress progress={state.progress} fileName={state.fileName} />
+            <LoadingProgress
+              progress={state.progress}
+              fileName={state.fileName}
+              statusLabel={state.statusLabel}
+            />
           </div>
         )}
 
