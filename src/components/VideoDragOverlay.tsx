@@ -14,6 +14,8 @@ interface VideoDragOverlayProps {
   embed: VideoEmbed
   editable?: boolean
   selected?: boolean
+  /** When false, pointer events pass through so the flipbook can turn pages. */
+  blockPageFlip?: boolean
   onSelect?: () => void
   onChange?: (embed: VideoEmbed) => void
   children?: ReactNode
@@ -23,6 +25,7 @@ export function VideoDragOverlay({
   embed,
   editable = false,
   selected = false,
+  blockPageFlip = true,
   onSelect,
   onChange,
   children,
@@ -87,6 +90,8 @@ export function VideoDragOverlay({
     dragRef.current = null
   }, [])
 
+  const captureFlip = editable || blockPageFlip
+
   return (
     <div
       ref={containerRef}
@@ -96,6 +101,8 @@ export function VideoDragOverlay({
           ? 'touch-none select-none ring-2 ' +
             (selected ? 'ring-apple-blue ring-offset-1 ring-offset-apple-blue/20' : 'ring-apple-blue/40')
           : 'ring-1 ring-black/10',
+        // Let page-turn gestures pass through until the reader engages the video.
+        !editable && !blockPageFlip ? 'pointer-events-none' : '',
       ].join(' ')}
       style={{
         left: `${embed.x}%`,
@@ -106,9 +113,9 @@ export function VideoDragOverlay({
       onPointerMove={editable ? handlePointerMove : undefined}
       onPointerUp={editable ? handlePointerUp : undefined}
       onPointerCancel={editable ? handlePointerUp : undefined}
-      onMouseDown={editable ? stopFlip : stopFlip}
-      onPointerDown={editable ? undefined : stopFlip}
-      onClick={stopFlip}
+      onMouseDown={captureFlip ? stopFlip : undefined}
+      onPointerDown={editable ? undefined : captureFlip ? stopFlip : undefined}
+      onClick={captureFlip ? stopFlip : undefined}
     >
       {editable ? (
         <>

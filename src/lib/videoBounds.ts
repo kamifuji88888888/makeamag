@@ -16,3 +16,10 @@ export function clampEmbedBounds(
     height,
   }
 }
+
+/** Near-full embeds cover flip corners/edges, so readers need tap-to-play. */
+export function isFullPageVideo(
+  embed: Pick<VideoEmbed, 'x' | 'y' | 'width' | 'height'>,
+): boolean {
+  return embed.width >= 95 && embed.height >= 95
+}

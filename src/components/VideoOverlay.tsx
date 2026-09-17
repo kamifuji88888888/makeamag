@@ -1,4 +1,6 @@
+import { useCallback, useEffect, useState } from 'react'
 import type { VideoEmbed } from '../../shared/flipbook'
+import { isFullPageVideo } from '../lib/videoBounds'
 import { resolveVideoEmbed } from '../lib/videoUtils'
 import { VideoDragOverlay } from './VideoDragOverlay'
 
@@ -57,8 +59,24 @@ export function VideoOverlay({
   onChange,
   onPlay,
 }: VideoOverlayProps) {
+  const fullPage = isFullPageVideo(embed)
+  const [engaged, setEngaged] = useState(false)
+
+  useEffect(() => {
+    if (editable) setEngaged(false)
+  }, [editable])
+
+  // Full-page videos cover flip targets — stay passive until the reader taps Play.
+  const tapToPlay = fullPage && !editable
+  const videoInteractive = interactive && (!tapToPlay || engaged)
+  const blockPageFlip = editable || !tapToPlay || engaged
+
+  const stopFlip = useCallback((e: React.MouseEvent | React.PointerEvent) => {
+    e.stopPropagation()
+  }, [])
+
   const content = (
-    <VideoContent embed={embed} interactive={interactive && !editable} onPlay={onPlay} />
+    <VideoContent embed={embed} interactive={videoInteractive} onPlay={onPlay} />
   )
 
   if (editable) {
@@ -69,6 +87,7 @@ export function VideoOverlay({
         selected={selected}
         onSelect={onSelect}
         onChange={onChange}
+        blockPageFlip
       >
         {content}
       </VideoDragOverlay>
@@ -76,8 +95,39 @@ export function VideoOverlay({
   }
 
   return (
-    <VideoDragOverlay embed={embed}>
+    <VideoDragOverlay embed={embed} blockPageFlip={blockPageFlip}>
       {content}
+      {tapToPlay && !engaged && (
+        <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-black/25">
+          <button
+            type="button"
+            className="pointer-events-auto rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-apple-text shadow-lg"
+            onMouseDown={stopFlip}
+            onPointerDown={stopFlip}
+            onClick={(e) => {
+              stopFlip(e)
+              setEngaged(true)
+              onPlay?.()
+            }}
+          >
+            Tap to play
+          </button>
+        </div>
+      )}
+      {tapToPlay && engaged && (
+        <button
+          type="button"
+          className="absolute right-2 top-2 z-20 rounded-full bg-black/70 px-3 py-1 text-xs font-medium text-white shadow"
+          onMouseDown={stopFlip}
+          onPointerDown={stopFlip}
+          onClick={(e) => {
+            stopFlip(e)
+            setEngaged(false)
+          }}
+        >
+          Done
+        </button>
+      )}
     </VideoDragOverlay>
   )
 }
