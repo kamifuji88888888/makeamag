@@ -26,6 +26,7 @@ interface FlipbookControlsProps {
   onTogglePositionMode?: () => void
   onOpenPositionPreview?: () => void
   onShare?: () => void
+  onOpenShareDialog?: () => void
   onOpenSocialShare?: () => void
   onOpenPublisher?: () => void
   onOpenContents?: () => void
@@ -58,6 +59,7 @@ export function FlipbookControls({
   onTogglePositionMode,
   onOpenPositionPreview,
   onShare,
+  onOpenShareDialog,
   onOpenSocialShare,
   onOpenPublisher,
   onOpenContents,
@@ -233,6 +235,17 @@ export function FlipbookControls({
           className="apple-btn-ghost"
         >
           Post
+        </button>
+      )}
+
+      {mode === 'editor' && flipbookId && onOpenShareDialog && (
+        <button
+          type="button"
+          onClick={onOpenShareDialog}
+          disabled={positionMode}
+          className="apple-btn-ghost"
+        >
+          Share
         </button>
       )}
 

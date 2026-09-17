@@ -891,6 +891,11 @@ export function FlipbookViewer({
               }
               onOpenSearch={visibleImages.length > 0 ? () => setShowSearch(true) : undefined}
               onShare={mode === 'editor' ? handleShareClick : undefined}
+              onOpenShareDialog={
+                mode === 'editor' && flipbookId
+                  ? () => setShowShareDialog(true)
+                  : undefined
+              }
               onOpenSocialShare={
                 flipbookId ? () => setShowSocialShareDialog(true) : undefined
               }
@@ -996,9 +1001,9 @@ export function FlipbookViewer({
         />
       )}
 
-      {showShareDialog && shareUrl && flipbookId && (
+      {showShareDialog && flipbookId && (
         <ShareDialog
-          shareUrl={shareUrl}
+          shareUrl={shareUrl ?? ''}
           flipbookId={flipbookId}
           fileName={fileName}
           publication={publication}
