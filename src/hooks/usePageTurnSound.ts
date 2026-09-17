@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 
 const PAGE_TURN_VOLUME = 0.2
 
@@ -52,9 +52,16 @@ function synthesizePageTurn(ctx: AudioContext) {
 
 export function usePageTurnSound(enabled: boolean) {
   const lastPlayed = useRef(0)
+  // react-pageflip often keeps the first onFlip handler, so play() must read
+  // the latest mute state from a ref instead of a closed-over boolean.
+  const enabledRef = useRef(enabled)
+
+  useEffect(() => {
+    enabledRef.current = enabled
+  }, [enabled])
 
   const play = useCallback(() => {
-    if (!enabled) return
+    if (!enabledRef.current) return
 
     const now = Date.now()
     if (now - lastPlayed.current < 120) return
@@ -66,7 +73,7 @@ export function usePageTurnSound(enabled: boolean) {
     }
 
     synthesizePageTurn(ctx)
-  }, [enabled])
+  }, [])
 
   const unlock = useCallback(() => {
     const ctx = getAudioContext()
