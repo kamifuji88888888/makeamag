@@ -167,6 +167,7 @@ export interface PublishedFlipbookSummary {
   }
   isPasswordProtected: boolean
   visibility?: 'public' | 'unlisted'
+  pageCount?: number
 }
 
 export async function fetchPublishedFlipbooks(): Promise<PublishedFlipbookSummary[]> {

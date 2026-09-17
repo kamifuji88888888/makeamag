@@ -261,6 +261,12 @@ function parseJsonField<T>(raw: unknown, fallback: T): T {
   }
 }
 
+function parsePageCount(raw: unknown): number | undefined {
+  const value = typeof raw === 'string' ? Number(raw) : typeof raw === 'number' ? raw : NaN
+  if (!Number.isFinite(value) || value < 1 || value > 10_000) return undefined
+  return Math.floor(value)
+}
+
 function canAccessPdf(
   meta: FlipbookStoredMeta,
   req: express.Request,
@@ -551,6 +557,7 @@ app.get('/api/auth/flipbooks', async (req, res) => {
     publication: FlipbookStoredMeta['publication']
     isPasswordProtected: boolean
     visibility: FlipbookStoredMeta['visibility']
+    pageCount?: number
   }> = []
 
   for (const meta of all) {
@@ -574,6 +581,9 @@ app.get('/api/auth/flipbooks', async (req, res) => {
           publication: claimed.publication,
           isPasswordProtected: claimed.isPasswordProtected,
           visibility: claimed.visibility,
+          ...(typeof claimed.pageCount === 'number' && claimed.pageCount > 0
+            ? { pageCount: claimed.pageCount }
+            : {}),
         })
         continue
       }
@@ -590,6 +600,9 @@ app.get('/api/auth/flipbooks', async (req, res) => {
       publication: attached.publication,
       isPasswordProtected: attached.isPasswordProtected,
       visibility: attached.visibility,
+      ...(typeof attached.pageCount === 'number' && attached.pageCount > 0
+        ? { pageCount: attached.pageCount }
+        : {}),
     })
   }
 
@@ -644,6 +657,7 @@ app.post('/api/flipbooks', upload.single('pdf'), async (req, res) => {
     const visibility = normalizeVisibility(
       typeof req.body.visibility === 'string' ? req.body.visibility : undefined,
     )
+    const pageCount = parsePageCount(req.body.pageCount)
     const session = readSessionFromRequest(req)
     const billingAccountId = billingAccountForSession(
       session,
@@ -669,6 +683,7 @@ app.post('/api/flipbooks', upload.single('pdf'), async (req, res) => {
       visibility,
       pdfKey,
       pdfSizeBytes: req.file.size,
+      ...(pageCount ? { pageCount } : {}),
       ...(billingAccountId ? { billingAccountId } : {}),
       ...(session
         ? {
@@ -845,6 +860,8 @@ app.post('/api/flipbooks/:id/pdf', upload.single('pdf'), async (req, res) => {
     await storage.savePdf(meta.id, req.file.buffer)
     meta.fileName = req.file.originalname
     meta.pdfSizeBytes = req.file.size
+    const pageCount = parsePageCount(req.body.pageCount)
+    if (pageCount) meta.pageCount = pageCount
     await storage.saveMeta(meta)
     res.json(toPublicMeta(meta))
   } catch (error) {
@@ -882,6 +899,7 @@ app.patch('/api/flipbooks/:id', async (req, res) => {
     subscriberAccessCode,
     removeSubscriberAccess,
     visibility,
+    pageCount: pageCountRaw,
   } = req.body as {
     videoEmbeds?: VideoEmbed[]
     password?: string
@@ -898,6 +916,7 @@ app.patch('/api/flipbooks/:id', async (req, res) => {
     subscriberAccessCode?: string
     removeSubscriberAccess?: boolean
     visibility?: FlipbookVisibility
+    pageCount?: number | string
   }
 
   if (videoEmbeds !== undefined) {
@@ -976,6 +995,11 @@ app.patch('/api/flipbooks/:id', async (req, res) => {
 
   if (visibility !== undefined) {
     meta.visibility = normalizeVisibility(visibility)
+  }
+
+  const pageCount = parsePageCount(pageCountRaw)
+  if (pageCount) {
+    meta.pageCount = pageCount
   }
 
   if (removeSubscriberAccess) {

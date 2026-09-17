@@ -411,6 +411,25 @@ export function EditorPage() {
             isPasswordProtected: meta.isPasswordProtected,
           })
           void syncShareCover(meta.id, result.images[0])
+          void updateFlipbook(meta.id, { pageCount: result.pageCount }).catch(() => {})
+          try {
+            const thumbnail = await createThumbnailFromDataUrl(result.images[0] ?? '')
+            library.bumpUpdated(entry.id, {
+              pageCount: result.pageCount,
+              fileName: meta.fileName,
+              thumbnail,
+              type: 'published',
+              flipbookId: meta.id,
+            })
+          } catch {
+            library.bumpUpdated(entry.id, {
+              pageCount: result.pageCount,
+              fileName: meta.fileName,
+              type: 'published',
+              flipbookId: meta.id,
+            })
+          }
+          return
         } else {
           throw new Error('This library entry is missing its published link. Try uploading the PDF again.')
         }
@@ -732,6 +751,7 @@ export function EditorPage() {
 
         if (nextFlipbookId) {
           void syncShareCover(nextFlipbookId, result.images[0])
+          void updateFlipbook(nextFlipbookId, { pageCount: result.pageCount }).catch(() => {})
         } else {
           await saveDraftPdf(ready.libraryEntryId, file)
         }
@@ -901,6 +921,7 @@ export function EditorPage() {
         if (state.flipbookId) {
           const updated = await updateFlipbook(state.flipbookId, {
             videoEmbeds: state.videoEmbeds,
+            pageCount: state.images.length,
             ...publisherPayload(state, plan.planId),
             ...(password ? { password } : {}),
           })
@@ -926,6 +947,7 @@ export function EditorPage() {
             password: password ?? state.publishPassword,
             planId: plan.planId,
             billingAccountId: getBillingAccountId(),
+            pageCount: state.images.length,
             ...publisherPayload(state, plan.planId),
           })
           try {

@@ -320,6 +320,7 @@ export function mergePublishedFlipbooks(
     publication?: PublicationInfo
     isPasswordProtected: boolean
     visibility?: FlipbookVisibility
+    pageCount?: number
   }>,
 ): LibraryEntry[] {
   const data = readLibrary()
@@ -343,6 +344,9 @@ export function mergePublishedFlipbooks(
         isPasswordProtected: book.isPasswordProtected,
         ...(book.visibility ? { visibility: book.visibility } : {}),
         ...(book.publication ? { publication: book.publication } : {}),
+        ...(typeof book.pageCount === 'number' && book.pageCount > 0
+          ? { pageCount: book.pageCount }
+          : {}),
         updatedAt: existing.updatedAt,
       }
       continue
@@ -357,7 +361,7 @@ export function mergePublishedFlipbooks(
       lastOpenedAt: book.createdAt,
       type: 'published',
       flipbookId: book.id,
-      pageCount: 0,
+      pageCount: typeof book.pageCount === 'number' && book.pageCount > 0 ? book.pageCount : 0,
       isPasswordProtected: book.isPasswordProtected,
       folderId: null,
       ...(book.visibility ? { visibility: book.visibility } : {}),

@@ -30,6 +30,7 @@ export interface PublisherUpdate {
   subscriberAccessCode?: string
   removeSubscriberAccess?: boolean
   visibility?: FlipbookVisibility
+  pageCount?: number
 }
 
 const API_BASE = '/api'
@@ -124,6 +125,7 @@ export async function publishFlipbook(
     visibility?: FlipbookVisibility
     planId?: PlanId
     billingAccountId?: string
+    pageCount?: number
   },
 ): Promise<FlipbookPublicMeta> {
   const formData = new FormData()
@@ -171,6 +173,9 @@ export async function publishFlipbook(
   if (options?.billingAccountId) {
     formData.append('billingAccountId', options.billingAccountId)
   }
+  if (options?.pageCount && options.pageCount > 0) {
+    formData.append('pageCount', String(options.pageCount))
+  }
 
   const response = await fetch(`${API_BASE}/flipbooks`, {
     method: 'POST',
@@ -189,12 +194,15 @@ export async function publishFlipbook(
 export async function replaceFlipbookPdf(
   id: string,
   pdfFile: File,
-  options?: { planId?: PlanId },
+  options?: { planId?: PlanId; pageCount?: number },
 ): Promise<FlipbookPublicMeta> {
   const formData = new FormData()
   formData.append('pdf', pdfFile)
   if (options?.planId) {
     formData.append('planId', options.planId)
+  }
+  if (options?.pageCount && options.pageCount > 0) {
+    formData.append('pageCount', String(options.pageCount))
   }
 
   let response: Response

@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react'
 import { displayTitle } from '../../shared/flipbook'
 import type { LibraryEntry, LibraryFolder, LibraryFolderFilter } from '../lib/libraryStorage'
+import { getShareCoverUrl } from '../lib/api'
 
 interface FlipbookLibraryProps {
   entries: LibraryEntry[]
@@ -35,6 +36,35 @@ function folderLabel(activeFolder: LibraryFolderFilter, folders: LibraryFolder[]
   if (activeFolder === 'all') return 'All flipbooks'
   if (activeFolder === 'uncategorized') return 'Uncategorized'
   return folders.find((folder) => folder.id === activeFolder)?.name ?? 'Folder'
+}
+
+function LibraryThumbnail({ entry }: { entry: LibraryEntry }) {
+  const [coverFailed, setCoverFailed] = useState(false)
+  const coverSrc =
+    !entry.thumbnail && entry.flipbookId && !coverFailed
+      ? getShareCoverUrl(entry.flipbookId)
+      : null
+
+  if (entry.thumbnail) {
+    return <img src={entry.thumbnail} alt="" className="h-full w-full object-cover" />
+  }
+
+  if (coverSrc) {
+    return (
+      <img
+        src={coverSrc}
+        alt=""
+        className="h-full w-full object-cover"
+        onError={() => setCoverFailed(true)}
+      />
+    )
+  }
+
+  return (
+    <svg className="h-5 w-5 text-apple-blue" fill="currentColor" viewBox="0 0 24 24">
+      <path d="M6 2c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6H6zm7 1.5L18.5 9H13V3.5z" />
+    </svg>
+  )
 }
 
 export function FlipbookLibrary({
@@ -306,13 +336,7 @@ export function FlipbookLibrary({
                   className="flex min-w-0 flex-1 items-center gap-4 text-left"
                 >
                   <div className="flex h-14 w-11 shrink-0 items-center justify-center overflow-hidden rounded-md bg-apple-gray">
-                    {entry.thumbnail ? (
-                      <img src={entry.thumbnail} alt="" className="h-full w-full object-cover" />
-                    ) : (
-                      <svg className="h-5 w-5 text-apple-blue" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M6 2c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6H6zm7 1.5L18.5 9H13V3.5z" />
-                      </svg>
-                    )}
+                    <LibraryThumbnail entry={entry} />
                   </div>
 
                   <div className="min-w-0 flex-1">
@@ -328,7 +352,8 @@ export function FlipbookLibrary({
                       })}
                     </p>
                     <p className="mt-0.5 text-sm text-apple-muted">
-                      {entry.pageCount} pages · {formatDate(entry.updatedAt)}
+                      {entry.pageCount > 0 ? `${entry.pageCount} pages · ` : ''}
+                      {formatDate(entry.updatedAt)}
                       {entry.type === 'draft' ? ' · Draft' : ''}
                       {entry.isPasswordProtected ? ' · Protected' : ''}
                       {entry.visibility === 'unlisted' ? ' · Unlisted' : ''}

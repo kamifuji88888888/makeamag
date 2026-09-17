@@ -124,6 +124,8 @@ export interface FlipbookPublicMeta {
   branding: BrandingConfig
   monetization: MonetizationConfig
   leadCapture: LeadCaptureConfig
+  /** Present when the publisher reported page count (library display). */
+  pageCount?: number
 }
 
 export interface FlipbookStoredMeta extends Omit<FlipbookPublicMeta, 'shortId'> {
@@ -140,6 +142,8 @@ export interface FlipbookStoredMeta extends Omit<FlipbookPublicMeta, 'shortId'> 
   /** Stable across account recreation; used to reclaim ownership after user-store wipes. */
   ownerEmail?: string
   pdfSizeBytes?: number
+  /** Page count from the publisher client (for library list display). */
+  pageCount?: number
 }
 
 export const DEFAULT_PUBLICATION: PublicationInfo = {
@@ -468,6 +472,9 @@ export function toPublicMeta(meta: FlipbookStoredMeta): FlipbookPublicMeta {
     branding: normalizeBranding(meta.branding),
     monetization: publicMonetizationFromStored(meta.monetization, meta.stripeAccountId),
     leadCapture: normalizeLeadCapture(meta.leadCapture),
+    ...(typeof meta.pageCount === 'number' && meta.pageCount > 0
+      ? { pageCount: meta.pageCount }
+      : {}),
   }
 }
 
