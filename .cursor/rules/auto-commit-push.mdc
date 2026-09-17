@@ -1,0 +1,14 @@
+---
+description: Auto commit and push completed MakeAMag changes to main
+alwaysApply: true
+---
+
+# Git: commit and push by default
+
+When the user requests a change for this app and the work is complete:
+
+1. **Commit and push to `main` automatically** — do not ask “want me to commit/push?”
+2. Follow the normal commit protocol (status, diff, log, HEREDOC message, no secrets, no force push).
+3. Exclude local junk (`public/pdfjs/`, `test-*.pdf`, `.env`, credentials).
+4. Still ask first only if something is ambiguous or destructive (e.g. force push, amend of others’ commits, deleting data).
+5. After push, briefly confirm the commit hash / that Railway can deploy.
