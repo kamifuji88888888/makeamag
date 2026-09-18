@@ -396,7 +396,7 @@ export function PublisherPanel({
                         <input
                           ref={replacePdfInputRef}
                           type="file"
-                          accept="application/pdf,.pdf"
+                          accept=".pdf,application/pdf"
                           className="hidden"
                           onChange={(e) => {
                             const file = e.target.files?.[0]
@@ -407,7 +407,21 @@ export function PublisherPanel({
                         <button
                           type="button"
                           disabled={pdfActionBusy}
-                          onClick={() => replacePdfInputRef.current?.click()}
+                          onClick={() => {
+                            if (pdfActionBusy) return
+                            const published = Boolean(flipbookId)
+                            const ok = window.confirm(
+                              published
+                                ? 'Replace the PDF for this magazine?\n\nYour share link stays the same. If the new PDF has a different page count, review hotspots, videos, and the table of contents.'
+                                : 'Replace the PDF for this draft?\n\nHotspots and videos may need repositioning if the page count changes.',
+                            )
+                            if (!ok) return
+                            // Open the picker only after confirm closes — stacking dialogs
+                            // makes Safari/macOS gray out PDFs on the next open.
+                            window.setTimeout(() => {
+                              replacePdfInputRef.current?.click()
+                            }, 0)
+                          }}
                           className="apple-btn-primary text-sm disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           {pdfActionBusy ? 'Replacing…' : 'Replace PDF'}

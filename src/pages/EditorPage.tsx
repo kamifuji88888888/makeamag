@@ -666,11 +666,6 @@ export function EditorPage() {
 
       const ready = state
       const published = Boolean(ready.flipbookId)
-      const confirmMessage = published
-        ? `Replace the PDF for this magazine?\n\nYour share link stays the same. If the new PDF has a different page count, review hotspots, videos, and the table of contents.`
-        : `Replace the PDF for this draft?\n\nHotspots and videos may need repositioning if the page count changes.`
-
-      if (!window.confirm(confirmMessage)) return
 
       if (published && !user) {
         alert('Sign in to replace the PDF on a published magazine. This keeps your existing share link.')
@@ -806,11 +801,6 @@ export function EditorPage() {
   const handleLibraryReupload = useCallback(
     async (entry: LibraryEntry, file: File) => {
       const published = entry.type === 'published' && Boolean(entry.flipbookId)
-      const confirmMessage = published
-        ? `Replace the PDF for “${entry.fileName}”?\n\nYour share link stays the same. If the new PDF has a different page count, review hotspots, videos, and the table of contents.`
-        : `Replace the PDF for draft “${entry.fileName}”?\n\nHotspots and videos may need repositioning if the page count changes.`
-
-      if (!window.confirm(confirmMessage)) return
 
       if (published && !user) {
         alert('Sign in to replace the PDF on a published magazine. This keeps your existing share link.')

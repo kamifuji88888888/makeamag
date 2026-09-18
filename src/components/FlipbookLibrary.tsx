@@ -128,11 +128,21 @@ export function FlipbookLibrary({
   const startReupload = useCallback(
     (entry: LibraryEntry) => {
       if (!onReupload || loadingId) return
+      const published = entry.type === 'published' && Boolean(entry.flipbookId)
+      const ok = window.confirm(
+        published
+          ? `Replace the PDF for “${entry.fileName}”?\n\nYour share link stays the same. If the new PDF has a different page count, review hotspots, videos, and the table of contents.`
+          : `Replace the PDF for draft “${entry.fileName}”?\n\nHotspots and videos may need repositioning if the page count changes.`,
+      )
+      if (!ok) return
       reuploadEntryRef.current = entry
-      const input = reuploadInputRef.current
-      if (!input) return
-      input.value = ''
-      input.click()
+      // Open picker after confirm closes so Safari/macOS does not gray out PDFs.
+      window.setTimeout(() => {
+        const input = reuploadInputRef.current
+        if (!input) return
+        input.value = ''
+        input.click()
+      }, 0)
     },
     [loadingId, onReupload],
   )
@@ -189,7 +199,7 @@ export function FlipbookLibrary({
         <input
           ref={reuploadInputRef}
           type="file"
-          accept="application/pdf,.pdf"
+          accept=".pdf,application/pdf"
           className="hidden"
           onChange={handleReuploadFileChange}
         />

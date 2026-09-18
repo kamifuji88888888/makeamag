@@ -93,7 +93,7 @@ export function UploadZone({ onFileSelect, disabled, maxUploadMb }: UploadZonePr
       <input
         ref={inputRef}
         type="file"
-        accept="application/pdf"
+        accept=".pdf,application/pdf"
         className="hidden"
         onChange={(e) => handleFile(e.target.files?.[0])}
       />
