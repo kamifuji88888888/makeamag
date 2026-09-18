@@ -3,6 +3,7 @@ import { displayTitle } from '../../shared/flipbook'
 import type { LibraryEntry, LibraryFolder, LibraryFolderFilter } from '../lib/libraryStorage'
 import { getShareCoverUrl } from '../lib/api'
 import { HoverTip } from './HoverTip'
+import { ConfirmReplacePdfDialog } from './ConfirmReplacePdfDialog'
 
 interface FlipbookLibraryProps {
   entries: LibraryEntry[]
@@ -92,6 +93,7 @@ export function FlipbookLibrary({
   const [newFolderName, setNewFolderName] = useState('')
   const reuploadInputRef = useRef<HTMLInputElement>(null)
   const reuploadEntryRef = useRef<LibraryEntry | null>(null)
+  const [pendingReupload, setPendingReupload] = useState<LibraryEntry | null>(null)
   const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState('')
   const dragIdRef = useRef<string | null>(null)
@@ -129,24 +131,21 @@ export function FlipbookLibrary({
   const startReupload = useCallback(
     (entry: LibraryEntry) => {
       if (!onReupload || loadingId) return
-      const published = entry.type === 'published' && Boolean(entry.flipbookId)
-      const ok = window.confirm(
-        published
-          ? `Replace the PDF for “${entry.fileName}”?\n\nYour share link stays the same. If the new PDF has a different page count, review hotspots, videos, and the table of contents.`
-          : `Replace the PDF for draft “${entry.fileName}”?\n\nHotspots and videos may need repositioning if the page count changes.`,
-      )
-      if (!ok) return
-      reuploadEntryRef.current = entry
-      // Open picker after confirm closes so Safari/macOS does not gray out PDFs.
-      window.setTimeout(() => {
-        const input = reuploadInputRef.current
-        if (!input) return
-        input.value = ''
-        input.click()
-      }, 0)
+      setPendingReupload(entry)
     },
     [loadingId, onReupload],
   )
+
+  const chooseReuploadPdf = useCallback(() => {
+    if (!pendingReupload) return
+    reuploadEntryRef.current = pendingReupload
+    setPendingReupload(null)
+    const input = reuploadInputRef.current
+    if (!input) return
+    input.value = ''
+    // Must run in this click handler — deferred opens are blocked by the browser.
+    input.click()
+  }, [pendingReupload])
 
   const handleReuploadFileChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -203,6 +202,16 @@ export function FlipbookLibrary({
           accept=".pdf,application/pdf"
           className="hidden"
           onChange={handleReuploadFileChange}
+        />
+      )}
+      {pendingReupload && (
+        <ConfirmReplacePdfDialog
+          fileName={pendingReupload.fileName}
+          published={
+            pendingReupload.type === 'published' && Boolean(pendingReupload.flipbookId)
+          }
+          onCancel={() => setPendingReupload(null)}
+          onChoosePdf={chooseReuploadPdf}
         />
       )}
       <div className="mb-4 flex items-end justify-between gap-4">
