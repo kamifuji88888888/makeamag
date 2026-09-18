@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from 'react'
 import { displayTitle } from '../../shared/flipbook'
 import type { LibraryEntry, LibraryFolder, LibraryFolderFilter } from '../lib/libraryStorage'
 import { getShareCoverUrl } from '../lib/api'
+import { HoverTip } from './HoverTip'
 
 interface FlipbookLibraryProps {
   entries: LibraryEntry[]
@@ -437,24 +438,27 @@ export function FlipbookLibrary({
 
                 <div className="flex shrink-0 items-center gap-1">
                   {onReupload && (
-                    <button
-                      type="button"
-                      onClick={() => startReupload(entry)}
-                      disabled={Boolean(loadingId)}
-                      title={
+                    <HoverTip
+                      label={
                         entry.type === 'published'
                           ? 'Replace PDF — keeps the same share link'
                           : 'Replace draft PDF'
                       }
-                      aria-label={
-                        entry.type === 'published'
-                          ? `Reupload PDF for ${entry.fileName}, keeping the same share link`
-                          : `Reupload PDF for draft ${entry.fileName}`
-                      }
-                      className="apple-btn-ghost text-apple-blue disabled:opacity-40"
                     >
-                      Reupload
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => startReupload(entry)}
+                        disabled={Boolean(loadingId)}
+                        aria-label={
+                          entry.type === 'published'
+                            ? `Reupload PDF for ${entry.fileName}, keeping the same share link`
+                            : `Reupload PDF for draft ${entry.fileName}`
+                        }
+                        className="apple-btn-ghost text-apple-blue disabled:opacity-40"
+                      >
+                        Reupload
+                      </button>
+                    </HoverTip>
                   )}
                   <button
                     type="button"

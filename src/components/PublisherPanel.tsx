@@ -13,6 +13,7 @@ import { analyzePublication } from '../lib/aiApi'
 import { getDnsTarget, resolveLogoUrl } from '../lib/branding'
 import { createLinkHotspot } from '../lib/linkHotspotUtils'
 import { createPopUpPanel } from '../lib/popUpPanelUtils'
+import { HoverTip } from './HoverTip'
 import { AnalyticsDashboard } from './AnalyticsDashboard'
 import { AiSuggestionsTab } from './AiSuggestionsTab'
 
@@ -404,33 +405,36 @@ export function PublisherPanel({
                             if (file) void onReplacePdf(file)
                           }}
                         />
-                        <button
-                          type="button"
-                          disabled={pdfActionBusy}
-                          title={
+                        <HoverTip
+                          label={
                             flipbookId
                               ? 'Replace PDF — keeps the same share link'
                               : 'Replace the PDF for this draft'
                           }
-                          onClick={() => {
-                            if (pdfActionBusy) return
-                            const published = Boolean(flipbookId)
-                            const ok = window.confirm(
-                              published
-                                ? 'Replace the PDF for this magazine?\n\nYour share link stays the same. If the new PDF has a different page count, review hotspots, videos, and the table of contents.'
-                                : 'Replace the PDF for this draft?\n\nHotspots and videos may need repositioning if the page count changes.',
-                            )
-                            if (!ok) return
-                            // Open the picker only after confirm closes — stacking dialogs
-                            // makes Safari/macOS gray out PDFs on the next open.
-                            window.setTimeout(() => {
-                              replacePdfInputRef.current?.click()
-                            }, 0)
-                          }}
-                          className="apple-btn-primary text-sm disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                          {pdfActionBusy ? 'Replacing…' : 'Replace PDF'}
-                        </button>
+                          <button
+                            type="button"
+                            disabled={pdfActionBusy}
+                            onClick={() => {
+                              if (pdfActionBusy) return
+                              const published = Boolean(flipbookId)
+                              const ok = window.confirm(
+                                published
+                                  ? 'Replace the PDF for this magazine?\n\nYour share link stays the same. If the new PDF has a different page count, review hotspots, videos, and the table of contents.'
+                                  : 'Replace the PDF for this draft?\n\nHotspots and videos may need repositioning if the page count changes.',
+                              )
+                              if (!ok) return
+                              // Open the picker only after confirm closes — stacking dialogs
+                              // makes Safari/macOS gray out PDFs on the next open.
+                              window.setTimeout(() => {
+                                replacePdfInputRef.current?.click()
+                              }, 0)
+                            }}
+                            className="apple-btn-primary text-sm disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {pdfActionBusy ? 'Replacing…' : 'Replace PDF'}
+                          </button>
+                        </HoverTip>
                       </>
                     )}
                     {onRefreshPages && (
