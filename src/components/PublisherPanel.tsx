@@ -407,6 +407,11 @@ export function PublisherPanel({
                         <button
                           type="button"
                           disabled={pdfActionBusy}
+                          title={
+                            flipbookId
+                              ? 'Replace PDF — keeps the same share link'
+                              : 'Replace the PDF for this draft'
+                          }
                           onClick={() => {
                             if (pdfActionBusy) return
                             const published = Boolean(flipbookId)
