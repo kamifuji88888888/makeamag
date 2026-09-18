@@ -803,6 +803,187 @@ export function EditorPage() {
     [applyPdfToReady, persistLibrary, plan, showUpgrade, state, user],
   )
 
+  const handleLibraryReupload = useCallback(
+    async (entry: LibraryEntry, file: File) => {
+      const published = entry.type === 'published' && Boolean(entry.flipbookId)
+      const confirmMessage = published
+        ? `Replace the PDF for “${entry.fileName}”?\n\nYour share link stays the same. If the new PDF has a different page count, review hotspots, videos, and the table of contents.`
+        : `Replace the PDF for draft “${entry.fileName}”?\n\nHotspots and videos may need repositioning if the page count changes.`
+
+      if (!window.confirm(confirmMessage)) return
+
+      if (published && !user) {
+        alert('Sign in to replace the PDF on a published magazine. This keeps your existing share link.')
+        return
+      }
+
+      plan.refreshUsage()
+      if (!plan.canUploadPdf(file.size)) {
+        showUpgrade('PDF too large', 'fileSize', undefined, formatByteSize(file.size))
+        return
+      }
+
+      setShowLibrary(false)
+      setLibraryLoadingId(entry.id)
+      setIsReplacingPdf(true)
+      setState({
+        status: 'loading',
+        fileName: file.name,
+        progress: 0.02,
+        statusLabel: published ? 'Uploading PDF…' : 'Preparing PDF…',
+      })
+
+      let uploadedToShare = false
+      let nextFlipbookId = entry.flipbookId ?? null
+      let nextShareUrl: string | null = null
+      let nextFileName = file.name
+
+      try {
+        let videoEmbeds: VideoEmbed[] = []
+        let linkHotspots = entry.linkHotspots ?? []
+        let popUpPanels = entry.popUpPanels ?? []
+        let popUpPanelStyle = normalizePopUpPanelStyle(entry.popUpPanelStyle)
+        let publication = normalizePublication(
+          entry.publication ?? defaultPublication(entry.fileName),
+        )
+        let tableOfContents = entry.tableOfContents ?? []
+        let spreadView = entry.spreadView
+        let branding = normalizeBranding(entry.branding)
+        let monetization = normalizeMonetization(entry.monetization)
+        let leadCapture = normalizeLeadCapture(entry.leadCapture)
+        let hasSubscriberAccess = false
+        let visibility = entry.visibility ?? DEFAULT_VISIBILITY
+        let isPasswordProtected = entry.isPasswordProtected
+
+        if (published && entry.flipbookId) {
+          const existingMeta = await fetchFlipbook(entry.flipbookId)
+          const meta = await replaceFlipbookPdf(entry.flipbookId, file, { planId: plan.planId })
+          nextFlipbookId = meta.id || entry.flipbookId
+          nextFileName = meta.fileName
+          nextShareUrl = getShareUrl(
+            sharePathId(meta),
+            meta.branding || existingMeta.branding || branding,
+          )
+          uploadedToShare = true
+          videoEmbeds = existingMeta.videoEmbeds ?? []
+          linkHotspots = existingMeta.linkHotspots ?? []
+          popUpPanels = existingMeta.popUpPanels ?? []
+          popUpPanelStyle = normalizePopUpPanelStyle(existingMeta.popUpPanelStyle)
+          publication = normalizePublication(existingMeta.publication)
+          tableOfContents = existingMeta.tableOfContents ?? []
+          spreadView = existingMeta.spreadView
+          branding = normalizeBranding(existingMeta.branding)
+          monetization = normalizeMonetization(existingMeta.monetization)
+          leadCapture = normalizeLeadCapture(existingMeta.leadCapture)
+          hasSubscriberAccess = existingMeta.hasSubscriberAccess
+          visibility = normalizeVisibility(existingMeta.visibility)
+          isPasswordProtected = existingMeta.isPasswordProtected
+          setState({
+            status: 'loading',
+            fileName: nextFileName,
+            progress: 0.08,
+            statusLabel: 'Rendering pages…',
+          })
+        }
+
+        const largePdf = file.size > 40 * 1024 * 1024
+        const result = await renderPdfToImages(
+          file,
+          (progress) => {
+            setState({
+              status: 'loading',
+              fileName: nextFileName,
+              progress: published ? 0.08 + progress * 0.92 : progress,
+              statusLabel: 'Rendering pages…',
+            })
+          },
+          largePdf ? { maxRenderWidth: 1100, jpegQuality: 0.82 } : undefined,
+        )
+
+        if (!plan.canAddPages(result.pageCount)) {
+          setState({ status: 'idle' })
+          showUpgrade('PDF too long', 'pages', undefined, String(result.pageCount))
+          return
+        }
+
+        if (nextFlipbookId) {
+          void syncShareCover(nextFlipbookId, result.images[0])
+          void updateFlipbook(nextFlipbookId, { pageCount: result.pageCount }).catch(() => {})
+        } else {
+          await saveDraftPdf(entry.id, file)
+        }
+
+        let thumbnail: string | undefined
+        try {
+          thumbnail = await createThumbnailFromDataUrl(result.images[0] ?? '')
+        } catch {
+          // optional
+        }
+
+        const nextReady: ReadyState = {
+          status: 'ready',
+          libraryEntryId: entry.id,
+          fileName: nextFileName,
+          pdfFile: file,
+          images: result.images,
+          aspectRatio: result.aspectRatio,
+          flipbookId: nextFlipbookId,
+          videoEmbeds,
+          linkHotspots,
+          popUpPanels,
+          popUpPanelStyle,
+          publication: {
+            ...publication,
+            title: publication.title || nextFileName.replace(/\.pdf$/i, ''),
+          },
+          tableOfContents,
+          spreadView: spreadView ?? defaultSpreadView(result.aspectRatio),
+          branding,
+          monetization,
+          leadCapture,
+          pageTexts: result.pageTexts,
+          hasSubscriberAccess,
+          subscriberAccessCode: '',
+          shareUrl: nextShareUrl,
+          visibility,
+          isPasswordProtected,
+        }
+
+        setState(nextReady)
+        persistLibrary(nextReady, {
+          fileName: nextReady.fileName,
+          pageCount: result.pageCount,
+          ...(thumbnail ? { thumbnail } : {}),
+          type: nextReady.flipbookId ? 'published' : 'draft',
+          ...(nextReady.flipbookId ? { flipbookId: nextReady.flipbookId } : {}),
+        })
+
+        if (nextReady.flipbookId && nextReady.shareUrl) {
+          alert(`PDF replaced. Your share link is unchanged:\n\n${nextReady.shareUrl}`)
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to replace PDF'
+        if (uploadedToShare && nextFlipbookId) {
+          setState({ status: 'idle' })
+          alert(
+            `PDF uploaded to your share link, but the editor preview failed.\n\n${message}\n\nOpen this magazine from My Flipbooks to refresh the preview. Your share link is unchanged.`,
+          )
+        } else {
+          setState({ status: 'idle' })
+          alert(
+            published
+              ? `Could not replace PDF (share link unchanged).\n\n${message}`
+              : message,
+          )
+        }
+      } finally {
+        setIsReplacingPdf(false)
+        setLibraryLoadingId(null)
+      }
+    },
+    [persistLibrary, plan, showUpgrade, user],
+  )
+
   const handleUploadNew = useCallback(() => {
     if (state.status === 'ready' && state.flipbookId) {
       const ok = window.confirm(
@@ -1015,6 +1196,7 @@ export function EditorPage() {
       activeFolder={library.activeFolder}
       folderCounts={library.folderCounts}
       onOpen={handleOpenLibraryEntry}
+      onReupload={(entry, file) => void handleLibraryReupload(entry, file)}
       onRemove={(id) => void library.remove(id)}
       onReorder={library.reorder}
       onResetOrder={library.resetOrderByRecent}

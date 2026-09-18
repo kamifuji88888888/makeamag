@@ -13,6 +13,7 @@ interface FlipbookLibraryProps {
     byFolder: Record<string, number>
   }
   onOpen: (entry: LibraryEntry) => void
+  onReupload?: (entry: LibraryEntry, file: File) => void
   onRemove: (id: string) => void
   onReorder: (order: string[]) => void
   onResetOrder?: () => void
@@ -73,6 +74,7 @@ export function FlipbookLibrary({
   activeFolder,
   folderCounts,
   onOpen,
+  onReupload,
   onRemove,
   onReorder,
   onResetOrder,
@@ -87,6 +89,8 @@ export function FlipbookLibrary({
   const [overId, setOverId] = useState<string | null>(null)
   const [creatingFolder, setCreatingFolder] = useState(false)
   const [newFolderName, setNewFolderName] = useState('')
+  const reuploadInputRef = useRef<HTMLInputElement>(null)
+  const reuploadEntryRef = useRef<LibraryEntry | null>(null)
   const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState('')
   const dragIdRef = useRef<string | null>(null)
@@ -121,6 +125,34 @@ export function FlipbookLibrary({
     [entries, onReorder, handleDragEnd],
   )
 
+  const startReupload = useCallback(
+    (entry: LibraryEntry) => {
+      if (!onReupload || loadingId) return
+      reuploadEntryRef.current = entry
+      const input = reuploadInputRef.current
+      if (!input) return
+      input.value = ''
+      input.click()
+    },
+    [loadingId, onReupload],
+  )
+
+  const handleReuploadFileChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0]
+      const entry = reuploadEntryRef.current
+      reuploadEntryRef.current = null
+      e.target.value = ''
+      if (!file || !entry || !onReupload) return
+      if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+        alert('Please choose a PDF file.')
+        return
+      }
+      onReupload(entry, file)
+    },
+    [onReupload],
+  )
+
   function submitNewFolder() {
     const name = newFolderName.trim()
     if (!name) return
@@ -153,6 +185,15 @@ export function FlipbookLibrary({
 
   return (
     <div>
+      {onReupload && (
+        <input
+          ref={reuploadInputRef}
+          type="file"
+          accept="application/pdf,.pdf"
+          className="hidden"
+          onChange={handleReuploadFileChange}
+        />
+      )}
       <div className="mb-4 flex items-end justify-between gap-4">
         <div>
           <h2 className="text-[1.75rem] font-semibold tracking-tight text-apple-text">
@@ -384,14 +425,27 @@ export function FlipbookLibrary({
                   </select>
                 )}
 
+                <div className="flex shrink-0 items-center gap-1">
+                  {onReupload && (
+                    <button
+                      type="button"
+                      onClick={() => startReupload(entry)}
+                      disabled={Boolean(loadingId)}
+                      aria-label={`Reupload PDF for ${entry.fileName}`}
+                      className="apple-btn-ghost text-apple-blue disabled:opacity-40"
+                    >
+                      Reupload
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => onRemove(entry.id)}
                     aria-label={`Remove ${entry.fileName}`}
-                    className="apple-btn-ghost shrink-0 text-apple-muted hover:text-red-500"
+                    className="apple-btn-ghost text-apple-muted hover:text-red-500"
                   >
                     {entry.type === 'published' ? 'Delete' : 'Remove'}
                   </button>
+                </div>
               </li>
             )
           })}
