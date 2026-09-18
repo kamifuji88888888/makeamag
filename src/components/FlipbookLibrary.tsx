@@ -139,11 +139,11 @@ export function FlipbookLibrary({
   const chooseReuploadPdf = useCallback(() => {
     if (!pendingReupload) return
     reuploadEntryRef.current = pendingReupload
-    setPendingReupload(null)
     const input = reuploadInputRef.current
     if (!input) return
     input.value = ''
-    // Must run in this click handler — deferred opens are blocked by the browser.
+    // Keep the confirm dialog mounted — closing it before click() makes Safari
+    // gray out PDFs on the first open. No accept= filter for the same reason.
     input.click()
   }, [pendingReupload])
 
@@ -153,6 +153,7 @@ export function FlipbookLibrary({
       const entry = reuploadEntryRef.current
       reuploadEntryRef.current = null
       e.target.value = ''
+      setPendingReupload(null)
       if (!file || !entry || !onReupload) return
       if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
         alert('Please choose a PDF file.')
@@ -199,7 +200,6 @@ export function FlipbookLibrary({
         <input
           ref={reuploadInputRef}
           type="file"
-          accept=".pdf,application/pdf"
           className="hidden"
           onChange={handleReuploadFileChange}
         />

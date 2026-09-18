@@ -399,12 +399,20 @@ export function PublisherPanel({
                         <input
                           ref={replacePdfInputRef}
                           type="file"
-                          accept=".pdf,application/pdf"
                           className="hidden"
                           onChange={(e) => {
                             const file = e.target.files?.[0]
                             e.target.value = ''
-                            if (file) void onReplacePdf(file)
+                            setShowReplaceConfirm(false)
+                            if (!file) return
+                            if (
+                              file.type !== 'application/pdf' &&
+                              !file.name.toLowerCase().endsWith('.pdf')
+                            ) {
+                              alert('Please choose a PDF file.')
+                              return
+                            }
+                            void onReplacePdf(file)
                           }}
                         />
                         <HoverTip
@@ -432,11 +440,11 @@ export function PublisherPanel({
                             published={Boolean(flipbookId)}
                             onCancel={() => setShowReplaceConfirm(false)}
                             onChoosePdf={() => {
-                              setShowReplaceConfirm(false)
                               const input = replacePdfInputRef.current
                               if (!input) return
                               input.value = ''
-                              // Must run in this click handler — deferred opens are blocked.
+                              // Keep confirm open until a file is chosen — closing first
+                              // makes Safari gray out PDFs on the first picker open.
                               input.click()
                             }}
                           />
