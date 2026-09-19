@@ -10,6 +10,7 @@ import { planLimitMessage, sanitizeBrandingForPlan, sanitizeLeadCaptureForPlan, 
 import { getBillingAccountId } from '../lib/billingStorage'
 import type {
   BrandingConfig,
+  FlipbookPublicMeta,
   FlipbookVisibility,
   LeadCaptureConfig,
   LinkHotspot,
@@ -44,6 +45,7 @@ import { createThumbnailFromDataUrl } from '../lib/thumbnail'
 import { FlipbookLibrary } from '../components/FlipbookLibrary'
 import { FlipbookViewer } from '../components/FlipbookViewer'
 import { LoadingProgress } from '../components/LoadingProgress'
+import { ShareDialog } from '../components/ShareDialog'
 import { UploadZone } from '../components/UploadZone'
 
 const TESTIMONIALS = [
@@ -150,6 +152,10 @@ export function EditorPage() {
   const [isReplacingPdf, setIsReplacingPdf] = useState(false)
   const [showLibrary, setShowLibrary] = useState(false)
   const [libraryLoadingId, setLibraryLoadingId] = useState<string | null>(null)
+  const [libraryShare, setLibraryShare] = useState<{
+    entryId: string
+    meta: FlipbookPublicMeta
+  } | null>(null)
   const [stripeConfigured, setStripeConfigured] = useState(false)
   const [stripeNotice, setStripeNotice] = useState<string | null>(null)
   const [searchParams, setSearchParams] = useSearchParams()
@@ -974,6 +980,23 @@ export function EditorPage() {
     [persistLibrary, plan, showUpgrade, user],
   )
 
+  const handleLibraryShare = useCallback(
+    async (entry: LibraryEntry) => {
+      if (!entry.flipbookId) return
+      setLibraryLoadingId(entry.id)
+      try {
+        const meta = await fetchFlipbook(entry.flipbookId)
+        setLibraryShare({ entryId: entry.id, meta })
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Could not open share link'
+        alert(message)
+      } finally {
+        setLibraryLoadingId(null)
+      }
+    },
+    [],
+  )
+
   const handleUploadNew = useCallback(() => {
     if (state.status === 'ready' && state.flipbookId) {
       const ok = window.confirm(
@@ -1187,6 +1210,7 @@ export function EditorPage() {
       folderCounts={library.folderCounts}
       onOpen={handleOpenLibraryEntry}
       onReupload={(entry, file) => void handleLibraryReupload(entry, file)}
+      onShare={(entry) => void handleLibraryShare(entry)}
       onRemove={(id) => void library.remove(id)}
       onReorder={library.reorder}
       onResetOrder={library.resetOrderByRecent}
@@ -1442,6 +1466,52 @@ export function EditorPage() {
             <div className="px-6 py-6">{libraryPanel}</div>
           </div>
         </div>
+      )}
+
+      {libraryShare && (
+        <ShareDialog
+          shareUrl={getShareUrl(sharePathId(libraryShare.meta), libraryShare.meta.branding)}
+          flipbookId={libraryShare.meta.id}
+          fileName={libraryShare.meta.fileName}
+          publication={normalizePublication(libraryShare.meta.publication)}
+          branding={normalizeBranding(libraryShare.meta.branding)}
+          visibility={normalizeVisibility(libraryShare.meta.visibility)}
+          isPasswordProtected={libraryShare.meta.isPasswordProtected}
+          canPasswordProtect={plan.can('passwordProtection')}
+          onUpgradeRequest={handleUpgradeFeature}
+          onClose={() => setLibraryShare(null)}
+          onPasswordChange={(password, enabled) => {
+            if (enabled && !plan.can('passwordProtection')) {
+              showUpgrade('Password protection', 'feature', 'passwordProtection', 'Password protection')
+              return
+            }
+            void updateFlipbook(
+              libraryShare.meta.id,
+              enabled ? { password } : { removePassword: true },
+            )
+              .then((meta) => {
+                setLibraryShare({ entryId: libraryShare.entryId, meta })
+                library.bumpUpdated(libraryShare.entryId, {
+                  isPasswordProtected: meta.isPasswordProtected,
+                })
+              })
+              .catch((error) => {
+                alert(error instanceof Error ? error.message : 'Could not update password')
+              })
+          }}
+          onVisibilityChange={(visibility) => {
+            void updateFlipbook(libraryShare.meta.id, { visibility })
+              .then((meta) => {
+                setLibraryShare({ entryId: libraryShare.entryId, meta })
+                library.bumpUpdated(libraryShare.entryId, {
+                  visibility: normalizeVisibility(meta.visibility),
+                })
+              })
+              .catch((error) => {
+                alert(error instanceof Error ? error.message : 'Could not update visibility')
+              })
+          }}
+        />
       )}
       <SiteFooter />
     </div>

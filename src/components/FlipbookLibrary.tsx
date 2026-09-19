@@ -16,6 +16,7 @@ interface FlipbookLibraryProps {
   }
   onOpen: (entry: LibraryEntry) => void
   onReupload?: (entry: LibraryEntry, file: File) => void
+  onShare?: (entry: LibraryEntry) => void
   onRemove: (id: string) => void
   onReorder: (order: string[]) => void
   onResetOrder?: () => void
@@ -77,6 +78,7 @@ export function FlipbookLibrary({
   folderCounts,
   onOpen,
   onReupload,
+  onShare,
   onRemove,
   onReorder,
   onResetOrder,
@@ -466,6 +468,19 @@ export function FlipbookLibrary({
                         className="apple-btn-ghost text-apple-blue disabled:opacity-40"
                       >
                         Reupload
+                      </button>
+                    </HoverTip>
+                  )}
+                  {onShare && entry.type === 'published' && entry.flipbookId && (
+                    <HoverTip label="Copy link, embed code, and QR">
+                      <button
+                        type="button"
+                        onClick={() => onShare(entry)}
+                        disabled={Boolean(loadingId)}
+                        aria-label={`Share ${entry.fileName}`}
+                        className="apple-btn-ghost text-apple-blue disabled:opacity-40"
+                      >
+                        Share
                       </button>
                     </HoverTip>
                   )}

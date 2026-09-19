@@ -149,7 +149,7 @@ export function ShareDialog({
   }
 
   return (
-    <div className="apple-modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="apple-modal-overlay fixed inset-0 z-[60] flex items-center justify-center p-4">
       <div className="apple-modal max-h-[90vh] w-full max-w-lg overflow-y-auto">
         <div className="flex items-start justify-between border-b border-apple-border-light px-6 py-5">
           <div>
