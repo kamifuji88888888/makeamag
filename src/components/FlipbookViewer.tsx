@@ -28,6 +28,7 @@ import { useFlipbookAnalytics } from '../hooks/useFlipbookAnalytics'
 import { useFlipbookZoom } from '../hooks/useFlipbookZoom'
 import { usePageTurnSound } from '../hooks/usePageTurnSound'
 import { FlipbookControls } from './FlipbookControls'
+import { FlipbookOverlayProvider } from './FlipbookOverlayContext'
 import { FlipbookPage } from './FlipbookPage'
 import { PopUpPanelModal } from './PopUpPanelModal'
 import { PublicationHeader } from './PublicationHeader'
@@ -675,6 +676,50 @@ export function FlipbookViewer({
     [goToPage, resetZoom],
   )
 
+  const overlayContextValue = useMemo(
+    () => ({
+      videoEmbeds,
+      linkHotspots,
+      popUpPanels,
+      popUpPanelStyle,
+      branding,
+      interactiveVideos: !inlinePositionMode,
+      editableVideos: inlinePositionMode,
+      editableLinks: inlinePositionMode,
+      editablePanels: inlinePositionMode,
+      selectedEmbedId,
+      selectedLinkId,
+      selectedPanelId,
+      onSelectEmbed: setSelectedEmbedId,
+      onSelectLink: setSelectedLinkId,
+      onSelectPanel: setSelectedPanelId,
+      onUpdateEmbed: handleUpdateEmbed,
+      onUpdateLink: handleUpdateLink,
+      onUpdatePanel: handleUpdatePanel,
+      onLinkClick: trackLinkClick,
+      onPanelOpen: setOpenPopUpPanel,
+      onVideoPlay: trackVideoPlay,
+    }),
+    [
+      branding,
+      handleUpdateEmbed,
+      handleUpdateLink,
+      handleUpdatePanel,
+      inlinePositionMode,
+      linkHotspots,
+      popUpPanelStyle,
+      popUpPanels,
+      selectedEmbedId,
+      selectedLinkId,
+      selectedPanelId,
+      trackLinkClick,
+      trackVideoPlay,
+      videoEmbeds,
+    ],
+  )
+
+  // Keep page element identities stable — react-pageflip remounts HTML on every
+  // children change, which breaks drag mid-move if overlays live in page props.
   const pages = useMemo(
     () =>
       visibleImages.map((src, index) => (
@@ -684,49 +729,15 @@ export function FlipbookViewer({
           pageNumber={index + 1}
           pageIndex={index}
           spreadSpine={spreadSpineForPage(index, totalPages, layoutSpread)}
-          videoEmbeds={videoEmbeds}
-          linkHotspots={linkHotspots}
-          popUpPanels={popUpPanels}
-          popUpPanelStyle={popUpPanelStyle}
-          branding={branding}
-          interactiveVideos={!inlinePositionMode}
-          editableVideos={inlinePositionMode}
-          editableLinks={inlinePositionMode}
-          editablePanels={inlinePositionMode}
-          selectedEmbedId={selectedEmbedId}
-          selectedLinkId={selectedLinkId}
-          selectedPanelId={selectedPanelId}
-          onSelectEmbed={setSelectedEmbedId}
-          onSelectLink={setSelectedLinkId}
-          onSelectPanel={setSelectedPanelId}
-          onUpdateEmbed={handleUpdateEmbed}
-          onUpdateLink={handleUpdateLink}
-          onUpdatePanel={handleUpdatePanel}
-          onLinkClick={trackLinkClick}
-          onPanelOpen={setOpenPopUpPanel}
-          onVideoPlay={trackVideoPlay}
         />
       )),
-    [
-      visibleImages,
-      totalPages,
-      layoutSpread,
-      videoEmbeds,
-      linkHotspots,
-      popUpPanels,
-      popUpPanelStyle,
-      branding,
-      inlinePositionMode,
-      selectedEmbedId,
-      selectedLinkId,
-      selectedPanelId,
-      handleUpdateEmbed,
-      handleUpdateLink,
-      handleUpdatePanel,
-      trackLinkClick,
-      trackVideoPlay,
-    ],
+    [visibleImages, totalPages, layoutSpread],
   )
+
+  const overlaysOnCurrentPage =
+    videoEmbeds.some((embed) => embed.pageIndex === currentPage - 1) ||
+    linkHotspots.some((hotspot) => hotspot.pageIndex === currentPage - 1) ||
+    popUpPanels.some((panel) => panel.pageIndex === currentPage - 1)
 
   return (
     <>
@@ -763,16 +774,21 @@ export function FlipbookViewer({
         )}
 
         {inlinePositionMode && mode === 'editor' && (
-          <div className="flex w-full max-w-xl shrink-0 items-center justify-between rounded-full border border-apple-blue/20 bg-apple-blue/8 px-4 py-2 text-sm text-apple-blue">
-            <span>Drag to move · pull the corner handle to resize</span>
+          <div className="flex w-full max-w-xl shrink-0 items-center justify-between gap-3 rounded-full border border-apple-blue/20 bg-apple-blue/8 px-4 py-2 text-sm text-apple-blue">
+            <span>
+              {overlaysOnCurrentPage
+                ? 'Drag blue/green overlays to move · pull the corner to resize'
+                : 'Add a video, link, or panel on this page first — then drag to position it'}
+            </span>
             <button
               type="button"
               onClick={() => {
                 setInlinePositionMode(false)
                 setSelectedEmbedId(null)
                 setSelectedLinkId(null)
+                setSelectedPanelId(null)
               }}
-              className="font-medium hover:underline"
+              className="shrink-0 font-medium hover:underline"
             >
               Done
             </button>
@@ -797,33 +813,35 @@ export function FlipbookViewer({
               ].join(' ')}
               style={{ width: bookWidth, height }}
             >
-              <HTMLFlipBook
-                key={bookKey}
-                ref={bookRef}
-                className="flipbook"
-                style={{ width: bookWidth, height }}
-                width={width}
-                height={height}
-                size="fixed"
-                minWidth={80}
-                maxWidth={1400}
-                minHeight={80}
-                maxHeight={1400}
-                drawShadow
-                flippingTime={800}
-                usePortrait={usePortraitLayout}
-                startZIndex={0}
-                autoSize={false}
-                maxShadowOpacity={0.5}
-                showCover={layoutSpread && !isCoverOrBack}
-                mobileScrollSupport={!isZoomed}
-                swipeDistance={isZoomed ? 9999 : 30}
-                clickEventForward={!inlinePositionMode && !isZoomed}
-                useMouseEvents={!inlinePositionMode && !isZoomed}
-                onFlip={handleFlip}
-              >
-                {pages}
-              </HTMLFlipBook>
+              <FlipbookOverlayProvider value={overlayContextValue}>
+                <HTMLFlipBook
+                  key={bookKey}
+                  ref={bookRef}
+                  className="flipbook"
+                  style={{ width: bookWidth, height }}
+                  width={width}
+                  height={height}
+                  size="fixed"
+                  minWidth={80}
+                  maxWidth={1400}
+                  minHeight={80}
+                  maxHeight={1400}
+                  drawShadow
+                  flippingTime={800}
+                  usePortrait={usePortraitLayout}
+                  startZIndex={0}
+                  autoSize={false}
+                  maxShadowOpacity={0.5}
+                  showCover={layoutSpread && !isCoverOrBack}
+                  mobileScrollSupport={!isZoomed}
+                  swipeDistance={isZoomed ? 9999 : 30}
+                  clickEventForward={!inlinePositionMode && !isZoomed}
+                  useMouseEvents={!inlinePositionMode && !isZoomed}
+                  onFlip={handleFlip}
+                >
+                  {pages}
+                </HTMLFlipBook>
+              </FlipbookOverlayProvider>
             </div>
           </div>
         </div>

@@ -1,5 +1,5 @@
 import { forwardRef } from 'react'
-import type { BrandingConfig, LinkHotspot, PopUpPanel, PopUpPanelStyle, VideoEmbed } from '../../shared/flipbook'
+import { useFlipbookOverlays } from './FlipbookOverlayContext'
 import { LinkHotspotOverlay } from './LinkHotspotOverlay'
 import { PopUpPanelOverlay } from './PopUpPanelOverlay'
 import { VideoOverlay } from './VideoOverlay'
@@ -9,48 +9,23 @@ interface FlipbookPageProps {
   pageNumber: number
   pageIndex: number
   spreadSpine?: 'left' | 'right' | 'single' | null
-  videoEmbeds?: VideoEmbed[]
-  linkHotspots?: LinkHotspot[]
-  popUpPanels?: PopUpPanel[]
-  popUpPanelStyle?: PopUpPanelStyle
-  branding?: BrandingConfig
-  interactiveVideos?: boolean
-  editableVideos?: boolean
-  editableLinks?: boolean
-  editablePanels?: boolean
-  selectedEmbedId?: string | null
-  selectedLinkId?: string | null
-  selectedPanelId?: string | null
-  onSelectEmbed?: (id: string) => void
-  onSelectLink?: (id: string) => void
-  onSelectPanel?: (id: string) => void
-  onUpdateEmbed?: (embed: VideoEmbed) => void
-  onUpdateLink?: (hotspot: LinkHotspot) => void
-  onUpdatePanel?: (panel: PopUpPanel) => void
-  onLinkClick?: (hotspot: LinkHotspot) => void
-  onPanelOpen?: (panel: PopUpPanel) => void
-  onVideoPlay?: (embed: VideoEmbed) => void
 }
 
 export const FlipbookPage = forwardRef<HTMLDivElement, FlipbookPageProps>(
-  (
-    {
-      src,
-      pageNumber,
-      pageIndex,
-      spreadSpine = null,
-      videoEmbeds = [],
-      linkHotspots = [],
-      popUpPanels = [],
+  ({ src, pageNumber, pageIndex, spreadSpine = null }, ref) => {
+    const {
+      videoEmbeds,
+      linkHotspots,
+      popUpPanels,
       popUpPanelStyle,
       branding,
-      interactiveVideos = true,
-      editableVideos = false,
-      editableLinks = false,
-      editablePanels = false,
-      selectedEmbedId = null,
-      selectedLinkId = null,
-      selectedPanelId = null,
+      interactiveVideos,
+      editableVideos,
+      editableLinks,
+      editablePanels,
+      selectedEmbedId,
+      selectedLinkId,
+      selectedPanelId,
       onSelectEmbed,
       onSelectLink,
       onSelectPanel,
@@ -60,9 +35,8 @@ export const FlipbookPage = forwardRef<HTMLDivElement, FlipbookPageProps>(
       onLinkClick,
       onPanelOpen,
       onVideoPlay,
-    },
-    ref,
-  ) => {
+    } = useFlipbookOverlays()
+
     const pageVideos = videoEmbeds.filter((embed) => embed.pageIndex === pageIndex)
     const pageLinks = linkHotspots.filter((hotspot) => hotspot.pageIndex === pageIndex)
     const pagePanels = popUpPanels.filter((panel) => panel.pageIndex === pageIndex)

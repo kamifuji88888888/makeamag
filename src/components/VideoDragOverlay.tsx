@@ -1,4 +1,4 @@
-import { useCallback, useRef, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, type ReactNode } from 'react'
 import type { VideoEmbed } from '../../shared/flipbook'
 import { clampEmbedBounds } from '../lib/videoBounds'
 
@@ -8,6 +8,7 @@ interface DragState {
   startX: number
   startY: number
   origin: Pick<VideoEmbed, 'x' | 'y' | 'width' | 'height'>
+  pointerId: number
 }
 
 interface VideoDragOverlayProps {
@@ -32,6 +33,16 @@ export function VideoDragOverlay({
 }: VideoDragOverlayProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef<DragState | null>(null)
+  const embedRef = useRef(embed)
+  const onChangeRef = useRef(onChange)
+
+  useEffect(() => {
+    embedRef.current = embed
+  }, [embed])
+
+  useEffect(() => {
+    onChangeRef.current = onChange
+  }, [onChange])
 
   const stopFlip = (e: React.MouseEvent | React.PointerEvent) => {
     e.stopPropagation()
@@ -39,7 +50,7 @@ export function VideoDragOverlay({
 
   const handlePointerDown = useCallback(
     (mode: 'move' | 'resize') => (e: React.PointerEvent) => {
-      if (!editable || !onChange) return
+      if (!editable || !onChangeRef.current) return
       e.stopPropagation()
       e.preventDefault()
       onSelect?.()
@@ -49,45 +60,49 @@ export function VideoDragOverlay({
         startX: e.clientX,
         startY: e.clientY,
         origin: { x: embed.x, y: embed.y, width: embed.width, height: embed.height },
+        pointerId: e.pointerId,
       }
       ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
     },
-    [editable, embed, onChange, onSelect],
+    [editable, embed, onSelect],
   )
 
-  const handlePointerMove = useCallback(
-    (e: React.PointerEvent) => {
-      const drag = dragRef.current
-      const page = containerRef.current?.closest('.flipbook-page') as HTMLElement | null
-      if (!drag || drag.embedId !== embed.id || !page || !onChange) return
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    const drag = dragRef.current
+    const page = containerRef.current?.closest('.flipbook-page') as HTMLElement | null
+    const current = embedRef.current
+    const change = onChangeRef.current
+    if (!drag || drag.embedId !== current.id || drag.pointerId !== e.pointerId || !page || !change) {
+      return
+    }
 
-      const rect = page.getBoundingClientRect()
-      const dx = ((e.clientX - drag.startX) / rect.width) * 100
-      const dy = ((e.clientY - drag.startY) / rect.height) * 100
+    const rect = page.getBoundingClientRect()
+    const dx = ((e.clientX - drag.startX) / rect.width) * 100
+    const dy = ((e.clientY - drag.startY) / rect.height) * 100
 
-      if (drag.mode === 'move') {
-        const next = clampEmbedBounds({
-          x: drag.origin.x + dx,
-          y: drag.origin.y + dy,
-          width: drag.origin.width,
-          height: drag.origin.height,
-        })
-        onChange({ ...embed, ...next })
-      } else {
-        const next = clampEmbedBounds({
-          x: drag.origin.x,
-          y: drag.origin.y,
-          width: drag.origin.width + dx,
-          height: drag.origin.height + dy,
-        })
-        onChange({ ...embed, ...next })
-      }
-    },
-    [embed, onChange],
-  )
+    if (drag.mode === 'move') {
+      const next = clampEmbedBounds({
+        x: drag.origin.x + dx,
+        y: drag.origin.y + dy,
+        width: drag.origin.width,
+        height: drag.origin.height,
+      })
+      change({ ...current, ...next })
+    } else {
+      const next = clampEmbedBounds({
+        x: drag.origin.x,
+        y: drag.origin.y,
+        width: drag.origin.width + dx,
+        height: drag.origin.height + dy,
+      })
+      change({ ...current, ...next })
+    }
+  }, [])
 
-  const handlePointerUp = useCallback(() => {
-    dragRef.current = null
+  const handlePointerUp = useCallback((e: React.PointerEvent) => {
+    if (dragRef.current?.pointerId === e.pointerId) {
+      dragRef.current = null
+    }
   }, [])
 
   const captureFlip = editable || blockPageFlip
@@ -101,7 +116,6 @@ export function VideoDragOverlay({
           ? 'touch-none select-none ring-2 ' +
             (selected ? 'ring-apple-blue ring-offset-1 ring-offset-apple-blue/20' : 'ring-apple-blue/40')
           : 'ring-1 ring-black/10',
-        // Let page-turn gestures pass through until the reader engages the video.
         !editable && !blockPageFlip ? 'pointer-events-none' : '',
       ].join(' ')}
       style={{
@@ -110,9 +124,6 @@ export function VideoDragOverlay({
         width: `${embed.width}%`,
         height: `${embed.height}%`,
       }}
-      onPointerMove={editable ? handlePointerMove : undefined}
-      onPointerUp={editable ? handlePointerUp : undefined}
-      onPointerCancel={editable ? handlePointerUp : undefined}
       onMouseDown={captureFlip ? stopFlip : undefined}
       onPointerDown={editable ? undefined : captureFlip ? stopFlip : undefined}
       onClick={captureFlip ? stopFlip : undefined}
@@ -122,15 +133,11 @@ export function VideoDragOverlay({
           <div
             className="relative h-full w-full cursor-move bg-black/20"
             onPointerDown={handlePointerDown('move')}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
           >
-            <div
-              className={[
-                'h-full w-full',
-                editable ? 'pointer-events-none' : '',
-              ].join(' ')}
-            >
-              {children}
-            </div>
+            <div className="pointer-events-none h-full w-full">{children}</div>
             <div className="pointer-events-none absolute inset-x-0 top-0 bg-apple-blue/90 px-1 py-0.5 text-center text-[9px] font-medium text-white">
               {selected ? 'Drag to move · corner to resize' : 'Drag to move'}
             </div>
@@ -139,6 +146,9 @@ export function VideoDragOverlay({
             className="absolute bottom-0 right-0 z-20 flex h-5 w-5 cursor-se-resize items-end justify-end rounded-tl bg-apple-blue p-0.5 shadow"
             aria-label="Resize video"
             onPointerDown={handlePointerDown('resize')}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
           >
             <svg className="h-3 w-3 text-white" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
               <path d="M12 12H8V10h2V8h2v4ZM4 12H0V8h2v2h2v2ZM12 4V0H8v2H6v2h2v2h4Z" />
