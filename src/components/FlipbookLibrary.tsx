@@ -462,12 +462,12 @@ export function FlipbookLibrary({
                         disabled={Boolean(loadingId)}
                         aria-label={
                           entry.type === 'published'
-                            ? `Reupload PDF for ${entry.fileName}, keeping the same share link`
-                            : `Reupload PDF for draft ${entry.fileName}`
+                            ? `Replace PDF for ${entry.fileName}, keeping the same share link`
+                            : `Replace PDF for draft ${entry.fileName}`
                         }
                         className="apple-btn-ghost text-apple-blue disabled:opacity-40"
                       >
-                        Reupload
+                        Replace
                       </button>
                     </HoverTip>
                   )}
