@@ -423,7 +423,10 @@ export async function ensureFlipbookAccess(
   throw new Error('Password required')
 }
 
-export async function fetchFlipbookPdf(id: string): Promise<ArrayBuffer> {
+export async function fetchFlipbookPdf(
+  id: string,
+  onProgress?: (ratio: number) => void,
+): Promise<ArrayBuffer> {
   let response: Response
   try {
     response = await fetch(`${API_BASE}/flipbooks/${id}/pdf`, {
@@ -441,7 +444,32 @@ export async function fetchFlipbookPdf(id: string): Promise<ArrayBuffer> {
     const body = (await response.json().catch(() => ({}))) as { error?: string }
     throw new Error(body.error ?? 'PDF not found')
   }
-  return response.arrayBuffer()
+
+  const total = Number(response.headers.get('content-length')) || 0
+  if (!onProgress || !response.body || !total) {
+    return response.arrayBuffer()
+  }
+
+  const reader = response.body.getReader()
+  const chunks: Uint8Array[] = []
+  let received = 0
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    if (value) {
+      chunks.push(value)
+      received += value.byteLength
+      onProgress(Math.min(1, received / total))
+    }
+  }
+
+  const buffer = new Uint8Array(received)
+  let offset = 0
+  for (const chunk of chunks) {
+    buffer.set(chunk, offset)
+    offset += chunk.byteLength
+  }
+  return buffer.buffer
 }
 
 export async function uploadFlipbookLogo(id: string, file: File): Promise<FlipbookPublicMeta> {

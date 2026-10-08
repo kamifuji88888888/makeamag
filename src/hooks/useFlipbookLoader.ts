@@ -28,7 +28,7 @@ import { getReaderRenderOptions, renderPdfFromBuffer } from '../lib/pdfRenderer'
 
 export type FlipbookLoadState =
   | { status: 'locked'; meta: FlipbookPublicMeta }
-  | { status: 'loading'; progress: number; fileName: string }
+  | { status: 'loading'; progress: number; fileName: string; statusLabel?: string }
   | {
       status: 'ready'
       fileName: string
@@ -62,17 +62,50 @@ export function useFlipbookLoader(id: string | undefined) {
   })
 
   const loadPdf = useCallback(async (flipbookId: string, meta: FlipbookPublicMeta) => {
-    setState({ status: 'loading', progress: 0, fileName: meta.fileName })
+    setState({
+      status: 'loading',
+      progress: 0.02,
+      fileName: meta.fileName,
+      statusLabel: 'Downloading…',
+    })
 
     try {
-      const buffer = await fetchFlipbookPdf(flipbookId)
-      const result = await renderPdfFromBuffer(
-        buffer,
-        (progress) => {
-          setState({ status: 'loading', progress, fileName: meta.fileName })
-        },
-        getReaderRenderOptions(),
-      )
+      const buffer = await fetchFlipbookPdf(flipbookId, (ratio) => {
+        setState({
+          status: 'loading',
+          progress: 0.02 + ratio * 0.18,
+          fileName: meta.fileName,
+          statusLabel: 'Downloading…',
+        })
+      })
+      const render = (options: ReturnType<typeof getReaderRenderOptions>) =>
+        renderPdfFromBuffer(
+          buffer.slice(0),
+          (progress) => {
+            setState({
+              status: 'loading',
+              progress: 0.2 + progress * 0.8,
+              fileName: meta.fileName,
+              statusLabel: 'Rendering pages…',
+            })
+          },
+          options,
+        )
+
+      let result: Awaited<ReturnType<typeof renderPdfFromBuffer>>
+      try {
+        result = await render(getReaderRenderOptions(meta.pageCount))
+      } catch (firstError) {
+        const lighter = {
+          maxRenderWidth: 560,
+          jpegQuality: 0.62,
+        }
+        try {
+          result = await render(lighter)
+        } catch {
+          throw firstError
+        }
+      }
 
       const monetization = normalizeMonetization(meta.monetization)
       const leadCapture = normalizeLeadCapture(meta.leadCapture)

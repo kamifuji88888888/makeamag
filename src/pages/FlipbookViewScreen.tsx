@@ -82,7 +82,11 @@ export function FlipbookViewScreen({ id, isCustomDomain = false }: FlipbookViewS
   if (state.status === 'loading') {
     return (
       <div className="flex min-h-screen items-center justify-center bg-apple-bg px-4">
-        <LoadingProgress progress={state.progress} fileName={state.fileName} />
+        <LoadingProgress
+          progress={state.progress}
+          fileName={state.fileName}
+          statusLabel={state.statusLabel}
+        />
       </div>
     )
   }
@@ -91,7 +95,9 @@ export function FlipbookViewScreen({ id, isCustomDomain = false }: FlipbookViewS
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-apple-bg px-4 text-center">
         <div className="apple-card max-w-md p-8">
-          <p className="text-[1.25rem] font-semibold text-apple-text">Flipbook not found</p>
+          <p className="text-[1.25rem] font-semibold text-apple-text">
+            {/not found/i.test(state.message) ? 'Flipbook not found' : 'Could not open this magazine'}
+          </p>
           <p className="mt-2 text-[1.0625rem] text-apple-muted">{state.message}</p>
         </div>
         {!isCustomDomain && (

@@ -48,7 +48,7 @@ export interface RenderPdfOptions {
 }
 
 const MAX_RENDER_WIDTH = 1400
-const MIN_READER_RENDER_WIDTH = 1200
+const MIN_READER_RENDER_WIDTH = 640
 const READER_MAX_DPR = 2
 
 export function getReaderMaxRenderWidth(): number {
@@ -62,10 +62,26 @@ export function getReaderMaxRenderWidth(): number {
   )
 }
 
-export function getReaderRenderOptions(): RenderPdfOptions {
+/** Long issues crash phones if every page is rasterized at desktop size. */
+export function getReaderRenderOptions(pageCount = 0): RenderPdfOptions {
+  let maxRenderWidth = getReaderMaxRenderWidth()
+  const narrow = typeof window !== 'undefined' && window.innerWidth < 900
+  const memory =
+    typeof navigator !== 'undefined'
+      ? (navigator as Navigator & { deviceMemory?: number }).deviceMemory
+      : undefined
+
+  if (narrow) maxRenderWidth = Math.min(maxRenderWidth, 860)
+  if (memory !== undefined && memory <= 4) maxRenderWidth = Math.min(maxRenderWidth, 760)
+  if (pageCount >= 80) maxRenderWidth = Math.min(maxRenderWidth, 960)
+  if (pageCount >= 120) {
+    maxRenderWidth = Math.min(maxRenderWidth, narrow || (memory !== undefined && memory <= 4) ? 680 : 860)
+  }
+
+  const jpegQuality = pageCount >= 100 ? 0.7 : pageCount >= 40 ? 0.8 : 0.86
   return {
-    maxRenderWidth: getReaderMaxRenderWidth(),
-    jpegQuality: 0.88,
+    maxRenderWidth: Math.max(MIN_READER_RENDER_WIDTH, Math.round(maxRenderWidth)),
+    jpegQuality,
   }
 }
 
@@ -136,8 +152,12 @@ async function renderPageToDataUrl(
   await renderTask.promise
 
   outputContext.drawImage(renderCanvas, 0, 0)
-
-  return canvasToDataUrl(outputCanvas, jpegQuality)
+  const dataUrl = canvasToDataUrl(outputCanvas, jpegQuality)
+  renderCanvas.width = 0
+  renderCanvas.height = 0
+  outputCanvas.width = 0
+  outputCanvas.height = 0
+  return dataUrl
 }
 
 async function destroyPdf(pdf: PdfJs.PDFDocumentProxy) {
@@ -180,7 +200,11 @@ async function renderPages(
       } catch {
         pageTexts.push('')
       }
+      page.cleanup()
       onProgress?.(pageNum / numPages)
+      if (pageNum % 2 === 0) {
+        await new Promise((resolve) => setTimeout(resolve, 0))
+      }
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error)
       throw new Error(`Failed to render page ${pageNum}: ${detail}`)

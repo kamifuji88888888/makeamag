@@ -91,7 +91,11 @@ export function EmbedPage() {
   if (state.status === 'loading') {
     return (
       <div className="embed-root flex h-full min-h-[400px] items-center justify-center bg-apple-bg px-4">
-        <LoadingProgress progress={state.progress} fileName={state.fileName} />
+        <LoadingProgress
+          progress={state.progress}
+          fileName={state.fileName}
+          statusLabel={state.statusLabel}
+        />
       </div>
     )
   }
