@@ -31,6 +31,7 @@ interface FlipbookControlsProps {
   onOpenPublisher?: () => void
   onOpenContents?: () => void
   onOpenSearch?: () => void
+  onOpenThumbnails?: () => void
   hasContents?: boolean
 }
 
@@ -64,6 +65,7 @@ export function FlipbookControls({
   onOpenPublisher,
   onOpenContents,
   onOpenSearch,
+  onOpenThumbnails,
   hasContents,
 }: FlipbookControlsProps) {
   const isFirst = currentPage <= 1
@@ -202,6 +204,12 @@ export function FlipbookControls({
       {onOpenSearch && (
         <button type="button" onClick={onOpenSearch} className="apple-btn-ghost">
           Search
+        </button>
+      )}
+
+      {onOpenThumbnails && (
+        <button type="button" onClick={onOpenThumbnails} className="apple-btn-ghost">
+          Thumbnails
         </button>
       )}
 

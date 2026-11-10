@@ -36,6 +36,7 @@ import { PublisherPanel } from './PublisherPanel'
 import { ReaderPaywall } from './ReaderPaywall'
 import { LeadCaptureGate } from './LeadCaptureGate'
 import { FlipbookSearchPanel } from './FlipbookSearchPanel'
+import { FlipbookThumbnailsPanel } from './FlipbookThumbnailsPanel'
 import { ShareDialog } from './ShareDialog'
 import { SocialShareDialog } from './SocialShareDialog'
 import { TocSidebar } from './TocSidebar'
@@ -304,6 +305,7 @@ export function FlipbookViewer({
   const [showLeadCapture, setShowLeadCapture] = useState(false)
   const [leadCaptureDismissed, setLeadCaptureDismissed] = useState(false)
   const [showSearch, setShowSearch] = useState(false)
+  const [showThumbnails, setShowThumbnails] = useState(false)
   const [soundEnabled, setSoundEnabled] = useState(true)
   const [showVideoEditor, setShowVideoEditor] = useState(false)
   const [showPublisherPanel, setShowPublisherPanel] = useState(false)
@@ -542,6 +544,7 @@ export function FlipbookViewer({
         showShareDialog ||
         showSocialShareDialog ||
         showSearch ||
+        showThumbnails ||
         showLeadCapture ||
         showPaywall ||
         showPublisherPanel ||
@@ -550,6 +553,9 @@ export function FlipbookViewer({
       ) {
         if (e.key === 'Escape' && openPopUpPanel) {
           setOpenPopUpPanel(null)
+        }
+        if (e.key === 'Escape' && showThumbnails) {
+          setShowThumbnails(false)
         }
         return
       }
@@ -582,6 +588,7 @@ export function FlipbookViewer({
     showShareDialog,
     showSocialShareDialog,
     showSearch,
+    showThumbnails,
     showLeadCapture,
     showPaywall,
     showPublisherPanel,
@@ -908,6 +915,9 @@ export function FlipbookViewer({
                 hasContents ? () => setShowTocSidebar(true) : undefined
               }
               onOpenSearch={visibleImages.length > 0 ? () => setShowSearch(true) : undefined}
+              onOpenThumbnails={
+                visibleImages.length > 0 ? () => setShowThumbnails(true) : undefined
+              }
               onShare={mode === 'editor' ? handleShareClick : undefined}
               onOpenShareDialog={
                 mode === 'editor' && flipbookId
@@ -1066,6 +1076,15 @@ export function FlipbookViewer({
           onGoToPage={goToPage}
           onPageTextsChange={handlePageTextsChange}
           onClose={() => setShowSearch(false)}
+        />
+      )}
+
+      {showThumbnails && visibleImages.length > 0 && (
+        <FlipbookThumbnailsPanel
+          pageImages={visibleImages}
+          currentPage={currentPage}
+          onGoToPage={goToPage}
+          onClose={() => setShowThumbnails(false)}
         />
       )}
 
