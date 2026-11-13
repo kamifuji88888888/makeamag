@@ -234,6 +234,27 @@ function spreadSpineForPage(
   return pageIndex % 2 === 1 ? 'left' : 'right'
 }
 
+const DESKTOP_LAYOUT_MQ = '(min-width: 768px)'
+
+function preferSpreadForViewport() {
+  if (typeof window === 'undefined') return true
+  return window.matchMedia(DESKTOP_LAYOUT_MQ).matches
+}
+
+function usePreferSpreadLayout() {
+  const [preferSpread, setPreferSpread] = useState(preferSpreadForViewport)
+
+  useEffect(() => {
+    const mq = window.matchMedia(DESKTOP_LAYOUT_MQ)
+    const sync = () => setPreferSpread(mq.matches)
+    sync()
+    mq.addEventListener('change', sync)
+    return () => mq.removeEventListener('change', sync)
+  }, [])
+
+  return preferSpread
+}
+
 export function FlipbookViewer({
   images,
   aspectRatio,
@@ -320,14 +341,21 @@ export function FlipbookViewer({
   const [showShareDialog, setShowShareDialog] = useState(false)
   const [showSocialShareDialog, setShowSocialShareDialog] = useState(false)
   const [pendingPassword, setPendingPassword] = useState<string | undefined>()
-  const [layoutSpread, setLayoutSpread] = useState(spreadView)
+  const preferSpreadLayout = usePreferSpreadLayout()
+  const layoutOverrideRef = useRef<boolean | null>(null)
+  const [layoutSpread, setLayoutSpread] = useState(() => preferSpreadForViewport())
   const wasPublishing = useRef(false)
   const initialPageApplied = useRef(false)
   const { play, unlock } = usePageTurnSound(soundEnabled)
 
+  // Mobile opens single-page; desktop opens double-page. Manual Page/Spread toggles stick.
   useEffect(() => {
-    setLayoutSpread(spreadView)
-  }, [spreadView])
+    if (layoutOverrideRef.current !== null) {
+      setLayoutSpread(layoutOverrideRef.current)
+      return
+    }
+    setLayoutSpread(preferSpreadLayout)
+  }, [preferSpreadLayout, spreadView])
 
   const isShared = mode === 'shared'
   const isEmbed = mode === 'embed'
@@ -393,11 +421,15 @@ export function FlipbookViewer({
 
   const handleLayoutChange = useCallback(
     (next: boolean) => {
+      layoutOverrideRef.current = next
       setLayoutSpread(next)
       resetZoom()
-      onSpreadViewChange?.(next)
+      // Persist publisher preference only on desktop-sized layouts.
+      if (preferSpreadLayout) {
+        onSpreadViewChange?.(next)
+      }
     },
-    [onSpreadViewChange, resetZoom],
+    [onSpreadViewChange, preferSpreadLayout, resetZoom],
   )
 
   const openPaywall = useCallback(() => {
